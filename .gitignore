@@ -1,0 +1,7 @@
+marketplace.db
+backend_backup/
+backend_backup_products/
+frontend_backup/
+frontend_backup_delete/
+test-image.txt
+node_modules/
