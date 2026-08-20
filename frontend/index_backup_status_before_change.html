@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Marketplace</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 18px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+    }
+
+    #cart {
+      background: #fff;
+      color: #222;
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+    }
+
+    main {
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    #products {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+    }
+
+    .product {
+      background: white;
+      padding: 18px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .product h3 {
+      margin-top: 0;
+    }
+
+    .price {
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    button {
+      background: #222;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    #status {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Mini Marketplace</h1>
+    <div id="cart">🛒 السلة: <span id="cartCount">0</span></div>
+  </header>
+
+<div style="background:white; padding:18px; margin-bottom:20px; border-radius:12px;">
+  <h2>📦 متابعة الطلب</h2>
+
+  <input
+    id="trackOrderId"
+    type="number"
+    placeholder="أدخل رقم الطلب"
+    style="width:100%; padding:10px; margin:8px 0; box-sizing:border-box;"
+  >
+
+  <button onclick="trackOrder()" style="padding:12px 20px;">
+    🔎 متابعة الطلب
+  </button>
+
+  <div id="orderTrackingResult" style="margin-top:15px;"></div>
+</div>   
+ <div id="cartBox" style="background:white; padding:18px; margin-bottom:20px; border-radius:12px;">
+      <h2>🛒 سلة المشتريات</h2>
+      <div id="cartItems">السلة فارغة</div>
+      <div id="cartTotal">المجموع: 0</div>
+    </div>
+      <div id="checkoutBox" style="background:white; padding:18px; margin-bottom:20px; border-radius:12px;">
+        <h2>📦 إتمام الطلب</h2>
+        <input id="customerName" type="text" placeholder="الاسم الكامل" style="display:block; width:100%; padding:10px; margin:8px 0; box-sizing:border-box;">
+        <input id="customerPhone" type="tel" placeholder="رقم الهاتف" style="display:block; width:100%; padding:10px; margin:8px 0; box-sizing:border-box;">
+        <textarea id="customerAddress" placeholder="العنوان" style="display:block; width:100%; padding:10px; margin:8px 0; box-sizing:border-box; min-height:80px;"></textarea>
+        <button onclick="submitOrder()" style="padding:12px 20px; margin-top:8px;">✅ إتمام الطلب</button>
+      </div>
+
+
+  <main>
+
+    <div id="status">جاري تحميل المنتجات...</div>
+
+<div style="margin:15px 0;">
+  <select id="customerCategory" onchange="filterCustomerProducts()" style="width:100%; padding:12px; border:1px solid #ccc; border-radius:8px;">
+    <option value="">📂 كل التصنيفات</option>
+    <option value="electronics">📱 إلكترونيات</option>
+    <option value="watches">⌚ ساعات</option>
+    <option value="accessories">🎧 إكسسوارات</option>
+  </select>
+</div>
+    <div id="products"></div>
+
+  </main>
+
+  <script>
+    document.getElementById("status").textContent = "بدأ JavaScript ✅";
+
+
+    let products = [];
+
+    let cart = [];
+
+    async function loadProducts() {
+
+      try {
+
+        const response = await fetch("http://127.0.0.1:3000/products");
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        products = await response.json();
+
+        const container = document.getElementById("products");
+
+        container.innerHTML = "";
+
+        products.forEach(product => {
+
+          const card = document.createElement("div");
+
+          card.className = "product";
+card.dataset.category = product.category || "";
+          card.innerHTML = `
+            <h3>${product.name}</h3>
+            <div class="price">السعر: ${product.price}</div>
+            <button onclick="addToCart('${product.id}')">
+              🛒 إضافة إلى السلة
+            </button>
+          `;
+
+          container.appendChild(card);
+
+        });
+
+        document.getElementById("status").textContent =
+          "المنتجات المتاحة";
+
+      } catch (error) {
+
+        document.getElementById("status").textContent =
+          "تعذر تحميل المنتجات: " + error.message;
+
+        console.error(error);
+
+      }
+
+    }
+
+
+function filterCustomerProducts() {
+  const selectedCategory =
+    document.getElementById("customerCategory").value;
+
+  const cards = document.querySelectorAll("#products .product");
+
+  cards.forEach(card => {
+    const productCategory = card.dataset.category || "";
+
+    card.style.display =
+      !selectedCategory || productCategory === selectedCategory
+        ? "block"
+        : "none";
+  });
+}
+async function trackOrder() {
+  const orderId = document.getElementById("trackOrderId").value.trim();
+  const result = document.getElementById("orderTrackingResult");
+
+  if (!orderId) {
+    result.innerHTML = "⚠️ يرجى إدخال رقم الطلب";
+    return;
+  }
+
+  result.innerHTML = "⏳ جاري البحث عن الطلب...";
+
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:3000/orders/${orderId}`
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      result.innerHTML = "❌ الطلب غير موجود";
+      return;
+    }
+
+    const order = data.order;
+
+    const statusNames = {
+      new: "🆕 جديد",
+      processing: "⚙️ قيد التجهيز",
+      shipped: "🚚 تم الشحن",
+      completed: "✅ مكتمل"
+    };
+
+
+result.innerHTML = `
+  <div style="padding:15px; background:#f5f5f5; border-radius:8px;">
+    <strong>رقم الطلب: #${order.id}</strong>
+
+    <div style="margin:20px 0;">
+
+      <div style="display:flex; justify-content:space-between; text-align:center;">
+
+        <div style="flex:1;">
+          <div style="font-size:28px;">🆕</div>
+          <small>جديد</small>
+        </div>
+
+        <div style="flex:1;">
+          <div style="font-size:28px;">⚙️</div>
+          <small>قيد التجهيز</small>
+        </div>
+
+        <div style="flex:1;">
+          <div style="font-size:28px;">🚚</div>
+          <small>تم الشحن</small>
+        </div>
+
+        <div style="flex:1;">
+          <div style="font-size:28px;">✅</div>
+          <small>مكتمل</small>
+        </div>
+
+      </div>
+
+      <p style="text-align:center; margin-top:15px; font-weight:bold;">
+        الحالة الحالية:
+        ${statusNames[order.status] || order.status}
+      </p>
+
+    </div>
+
+    <p>المجموع: ${Number(order.total).toLocaleString()} دينار</p>
+  </div>
+`;
+  } catch (error) {
+    result.innerHTML = "❌ تعذر الاتصال بالخادم";
+    console.error(error);
+  }
+}
+   
+function addToCart(productId) {
+
+  const product = products.find(p => String(p.id) === String(productId));
+
+  if (!product) return;
+
+  cart.push(product);
+
+  document.getElementById("cartCount").textContent = cart.length;
+
+  updateCart();
+
+  alert("تمت إضافة المنتج إلى السلة 🛒");
+}
+
+    function updateCart() {
+
+      const cartItems = document.getElementById("cartItems");
+      const cartTotal = document.getElementById("cartTotal");
+
+      if (cart.length === 0) {
+        cartItems.innerHTML = "السلة فارغة";
+        cartTotal.textContent = "المجموع: 0";
+        return;
+      }
+
+      cartItems.innerHTML = "";
+
+      let total = 0;
+
+      const grouped = {};
+
+      cart.forEach(product => {
+        if (!grouped[product.id]) {
+          grouped[product.id] = { product: product, quantity: 0 };
+        }
+        grouped[product.id].quantity++;
+      });
+
+      Object.values(grouped).forEach(itemData => {
+
+        const product = itemData.product;
+        const quantity = itemData.quantity;
+        const price = Number(product.price) || 0;
+        const subtotal = price * quantity;
+
+        total += subtotal;
+
+        const item = document.createElement("div");
+
+        item.innerHTML = `
+          <div style="padding:10px 0; border-bottom:1px solid #ddd;">
+            <strong>${product.name}</strong><br>
+            السعر: ${price} × الكمية: ${quantity} = ${subtotal}<br>
+            <button onclick="decreaseQuantity('${product.id}')">➖</button>
+            <span style="margin:0 10px;">${quantity}</span>
+            <button onclick="increaseQuantity('${product.id}')">➕</button>
+            <button onclick="removeFromCart('${product.id}')" style="margin-right:10px;">🗑️ حذف</button>
+
+          </div>
+        `;
+
+        cartItems.appendChild(item);
+
+      });
+
+      cartTotal.textContent = "المجموع: " + total;
+      }
+
+    function increaseQuantity(productId) {
+      cart.push(products.find(p => String(p.id) === String(productId)));
+      document.getElementById("cartCount").textContent = cart.length;
+      updateCart();
+    }
+
+    function decreaseQuantity(productId) {
+      const index = cart.findIndex(p => String(p.id) === String(productId));
+      if (index !== -1) {
+        cart.splice(index, 1);
+      }
+      document.getElementById("cartCount").textContent = cart.length;
+        updateCart();
+
+      }
+
+    function removeFromCart(productId) {
+      cart = cart.filter(p => String(p.id) !== String(productId));
+      document.getElementById("cartCount").textContent = cart.length;
+      updateCart();
+    }
+
+
+    async function submitOrder() {
+      const name = document.getElementById("customerName").value.trim();
+      const phone = document.getElementById("customerPhone").value.trim();
+      const address = document.getElementById("customerAddress").value.trim();
+
+      if (cart.length === 0) {
+        alert("السلة فارغة 🛒");
+        return;
+      }
+
+      if (!name || !phone || !address) {
+        alert("يرجى ملء جميع بيانات الطلب");
+        return;
+      }
+
+      const grouped = {};
+
+      cart.forEach(product => {
+        if (!grouped[product.id]) {
+          grouped[product.id] = {
+            id: product.id,
+            name: product.name,
+            price: Number(product.price) || 0,
+            quantity: 0
+          };
+        }
+        grouped[product.id].quantity++;
+      });
+
+      const items = Object.values(grouped);
+
+      let total = 0;
+      items.forEach(item => {
+        total += item.price * item.quantity;
+      });
+
+      try {
+        const response = await fetch("http://127.0.0.1:3000/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: name,
+            phone: phone,
+            address: address,
+            items: items,
+            total: total
+          })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || "تعذر إنشاء الطلب");
+        }
+
+        alert("تم إنشاء الطلب بنجاح ✅\nرقم الطلب: #" + data.order.id);
+
+        cart = [];
+        document.getElementById("cartCount").textContent = "0";
+        updateCart();
+
+        document.getElementById("customerName").value = "";
+        document.getElementById("customerPhone").value = "";
+        document.getElementById("customerAddress").value = "";
+
+      } catch (error) {
+        alert("تعذر إرسال الطلب: " + error.message);
+        console.error(error);
+      }
+    }
+
+
+
+    loadProducts();
+  </script>
+</div>
+</body>
+</html>

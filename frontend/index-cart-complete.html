@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Marketplace</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 18px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+    }
+
+    #cart {
+      background: #fff;
+      color: #222;
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+    }
+
+    main {
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    #products {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+    }
+
+    .product {
+      background: white;
+      padding: 18px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .product h3 {
+      margin-top: 0;
+    }
+
+    .price {
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    button {
+      background: #222;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    #status {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Mini Marketplace</h1>
+    <div id="cart">🛒 السلة: <span id="cartCount">0</span></div>
+  </header>
+
+    <div id="cartBox" style="background:white; padding:18px; margin-bottom:20px; border-radius:12px;">
+      <h2>🛒 سلة المشتريات</h2>
+      <div id="cartItems">السلة فارغة</div>
+      <div id="cartTotal">المجموع: 0</div>
+    </div>
+
+  <main>
+
+    <div id="status">جاري تحميل المنتجات...</div>
+
+    <div id="products"></div>
+
+  </main>
+
+  <script>
+    document.getElementById("status").textContent = "بدأ JavaScript ✅";
+
+
+    let products = [];
+
+    let cart = [];
+
+    async function loadProducts() {
+
+      try {
+
+        const response = await fetch("http://192.168.1.101:3000/products");
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        products = await response.json();
+
+        const container = document.getElementById("products");
+
+        container.innerHTML = "";
+
+        products.forEach(product => {
+
+          const card = document.createElement("div");
+
+          card.className = "product";
+
+          card.innerHTML = `
+            <h3>${product.name}</h3>
+            <div class="price">السعر: ${product.price}</div>
+            <button onclick="addToCart('${product.id}')">
+              🛒 إضافة إلى السلة
+            </button>
+          `;
+
+          container.appendChild(card);
+
+        });
+
+        document.getElementById("status").textContent =
+          "المنتجات المتاحة";
+
+      } catch (error) {
+
+        document.getElementById("status").textContent =
+          "تعذر تحميل المنتجات: " + error.message;
+
+        console.error(error);
+
+      }
+
+    }
+
+
+    function addToCart(productId) {
+
+      const product = products.find(p => String(p.id) === String(productId));
+
+      if (!product) return;
+
+      cart.push(product);
+
+      document.getElementById("cartCount").textContent = cart.length;
+
+      updateCart();
+
+      alert("تمت إضافة المنتج إلى السلة 🛒");
+    }
+
+    function updateCart() {
+
+      const cartItems = document.getElementById("cartItems");
+      const cartTotal = document.getElementById("cartTotal");
+
+      if (cart.length === 0) {
+        cartItems.innerHTML = "السلة فارغة";
+        cartTotal.textContent = "المجموع: 0";
+        return;
+      }
+
+      cartItems.innerHTML = "";
+
+      let total = 0;
+
+      const grouped = {};
+
+      cart.forEach(product => {
+        if (!grouped[product.id]) {
+          grouped[product.id] = { product: product, quantity: 0 };
+        }
+        grouped[product.id].quantity++;
+      });
+
+      Object.values(grouped).forEach(itemData => {
+
+        const product = itemData.product;
+        const quantity = itemData.quantity;
+        const price = Number(product.price) || 0;
+        const subtotal = price * quantity;
+
+        total += subtotal;
+
+        const item = document.createElement("div");
+
+        item.innerHTML = `
+          <div style="padding:10px 0; border-bottom:1px solid #ddd;">
+            <strong>${product.name}</strong><br>
+            السعر: ${price} × الكمية: ${quantity} = ${subtotal}<br>
+            <button onclick="decreaseQuantity('${product.id}')">➖</button>
+            <span style="margin:0 10px;">${quantity}</span>
+            <button onclick="increaseQuantity('${product.id}')">➕</button>
+            <button onclick="removeFromCart('${product.id}')" style="margin-right:10px;">🗑️ حذف</button>
+
+          </div>
+        `;
+
+        cartItems.appendChild(item);
+
+      });
+
+      cartTotal.textContent = "المجموع: " + total;
+      }
+
+    function increaseQuantity(productId) {
+      cart.push(products.find(p => String(p.id) === String(productId)));
+      document.getElementById("cartCount").textContent = cart.length;
+      updateCart();
+    }
+
+    function decreaseQuantity(productId) {
+      const index = cart.findIndex(p => String(p.id) === String(productId));
+      if (index !== -1) {
+        cart.splice(index, 1);
+      }
+      document.getElementById("cartCount").textContent = cart.length;
+        updateCart();
+
+      }
+
+    function removeFromCart(productId) {
+      cart = cart.filter(p => String(p.id) !== String(productId));
+      document.getElementById("cartCount").textContent = cart.length;
+      updateCart();
+    }
+
+
+    loadProducts();
+
+  </script>
+
+</body>
+</html>

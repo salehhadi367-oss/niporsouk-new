@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة البائع - Mini Marketplace</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background: #222;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .logout {
+      background: #c62828;
+    }
+
+    .product {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-top: 12px;
+      border-radius: 10px;
+      background: #fafafa;
+    }
+
+    .product img {
+      width: 100%;
+      max-width: 250px;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .message {
+      text-align: center;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 8px;
+      }
+
+      .container {
+        width: 100%;
+      }
+
+      .card {
+        padding: 12px;
+        margin-bottom: 12px;
+        border-radius: 10px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      .product {
+        padding: 12px;
+      }
+
+      .product img {
+        max-width: 100%;
+        height: 200px;
+      }
+
+      .product > div {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+      }
+
+      .product > div button {
+        width: 100% !important;
+        margin: 2px 0;
+      }
+
+      input, select, textarea, button {
+        font-size: 16px;
+      }
+    }
+  </style>
+
+<style id="nebour-seller-ui">
+body {
+  background: #f5f5f5 !important;
+}
+
+header {
+  background: linear-gradient(135deg, #111827, #374151) !important;
+  color: white !important;
+  padding: 20px 15px !important;
+  border-radius: 0 0 22px 22px;
+  box-shadow: 0 4px 15px rgba(0,0,0,.15);
+}
+
+button {
+  border-radius: 11px !important;
+  min-height: 44px;
+  font-weight: bold;
+}
+
+input, select, textarea {
+  border: 1px solid #ddd !important;
+  border-radius: 11px !important;
+  font-size: 16px !important;
+  box-sizing: border-box;
+}
+
+button:hover {
+  opacity: .9;
+}
+
+@media (max-width:600px) {
+  main, .container {
+    padding: 12px !important;
+  }
+
+  input, select, textarea {
+    width: 100% !important;
+  }
+
+  button {
+    width: 100%;
+    margin-top: 6px;
+  }
+}
+</style>
+
+
+<style id="nebour-seller-products">
+#productsList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 15px;
+}
+
+#productsList > div {
+  background: #fff !important;
+  border: 1px solid #eee;
+  border-radius: 16px !important;
+  padding: 12px !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
+  box-sizing: border-box;
+}
+
+#productsList img {
+  width: 100% !important;
+  height: 150px !important;
+  object-fit: contain !important;
+  background: #f7f7f7;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+#productsList button {
+  border-radius: 10px !important;
+  margin-top: 6px;
+}
+
+@media (max-width:420px) {
+  #productsList {
+    gap: 8px;
+  }
+
+  #productsList > div {
+    padding: 9px !important;
+  }
+
+  #productsList img {
+    height: 125px !important;
+  }
+
+  #productsList button {
+    font-size: 13px;
+    padding: 9px 5px;
+  }
+}
+</style>
+
+
+<style id="nebour-seller-orders">
+#sellerOrdersList > div {
+  background: #fff !important;
+  border: 1px solid #eee;
+  border-radius: 15px !important;
+  padding: 14px !important;
+  margin-bottom: 12px !important;
+  box-shadow: 0 3px 12px rgba(0,0,0,.07);
+}
+
+#sellerOrdersList button {
+  border-radius: 10px !important;
+  min-height: 42px;
+  font-weight: bold;
+}
+
+#sellerOrdersMessage {
+  text-align: center;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+@media (max-width:600px) {
+  #sellerOrdersList > div {
+    font-size: 14px;
+    padding: 12px !important;
+  }
+
+  #sellerOrdersList button {
+    width: 100%;
+    margin-top: 6px;
+  }
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- تسجيل الدخول -->
+  <div id="loginScreen" class="card">
+    <h2>🔐 تسجيل دخول البائع</h2>
+
+    <input id="sellerEmail" type="email" placeholder="البريد الإلكتروني">
+
+    <input id="sellerPassword" type="password" placeholder="كلمة المرور">
+
+    <button onclick="sellerLogin()">دخول</button>
+
+    <div id="loginMessage" class="message"></div>
+  </div>
+
+
+  <!-- لوحة البائع -->
+  <div id="sellerPanel" class="hidden">
+
+    <div class="card">
+      <h1>🧑‍💼 لوحة البائع</h1>
+
+      <h2>أهلاً بك <span id="sellerName"></span> 👋</h2>
+
+      <p>
+        البريد:
+        <strong id="sellerEmailDisplay"></strong>
+      </p>
+
+      <button class="logout" onclick="logoutSeller()">
+        🚪 تسجيل الخروج
+      </button>
+    </div>
+
+
+    <!-- إضافة منتج -->
+    <div class="card">
+
+      <h2>➕ إضافة منتج</h2>
+
+      <input id="productName" placeholder="اسم المنتج">
+
+      <input id="productPrice" type="number" placeholder="السعر">
+
+      <select id="productCategory">
+        <option value="electronics">إلكترونيات</option>
+        <option value="watches">ساعات</option>
+        <option value="accessories">إكسسوارات</option>
+        <option value="clothes">ملابس</option>
+        <option value="other">أخرى</option>
+      </select>
+
+      <textarea
+        id="productDescription"
+        placeholder="وصف المنتج"
+        rows="4"
+      ></textarea>
+
+      <input
+        type="file"
+        id="productImage"
+        accept="image/*"
+      >
+
+      <button onclick="addSellerProduct()">
+        ➕ إضافة المنتج
+      </button>
+
+      <div id="addProductMessage" class="message"></div>
+
+    </div>
+
+
+    <!-- طلبات البائع -->
+    <div class="card">
+
+      <h2>📦 طلبات منتجاتي</h2>
+
+      <div id="sellerOrdersMessage" class="message">
+        جاري تحميل الطلبات...
+      </div>
+
+      <div id="sellerOrdersList"></div>
+
+    </div>
+
+
+    <!-- المنتجات -->
+    <div class="card">
+
+      <h2>📦 منتجاتي</h2>
+
+      <div id="productsMessage" class="message">
+        جاري تحميل المنتجات...
+      </div>
+
+      <div id="productsList"></div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+const API_URL = "http://127.0.0.1:3000";
+
+let currentSeller = null;
+
+
+// تسجيل الدخول
+async function sellerLogin() {
+
+  const email =
+    document.getElementById("sellerEmail").value.trim();
+
+  const password =
+    document.getElementById("sellerPassword").value;
+
+  const message =
+    document.getElementById("loginMessage");
+
+  if (!email || !password) {
+    message.textContent =
+      "يرجى إدخال البريد وكلمة المرور";
+    return;
+  }
+
+  message.textContent =
+    "جاري تسجيل الدخول...";
+
+  try {
+
+    const response = await fetch(
+      API_URL + "/seller-login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      message.textContent =
+        data.message || "فشل تسجيل الدخول";
+      return;
+    }
+
+    currentSeller = data.seller;
+
+    localStorage.setItem(
+      "currentSeller",
+      JSON.stringify(currentSeller)
+    );
+
+    showSellerPanel();
+
+  } catch (error) {
+
+    console.error(error);
+
+    message.textContent =
+      "تعذر الاتصال بالسيرفر ❌";
+  }
+}
+
+
+// عرض لوحة البائع
+function showSellerPanel() {
+
+  if (!currentSeller) {
+    return;
+  }
+
+  document
+    .getElementById("loginScreen")
+    .classList.add("hidden");
+
+  document
+    .getElementById("sellerPanel")
+    .classList.remove("hidden");
+
+  document
+    .getElementById("sellerName")
+    .textContent = currentSeller.name;
+
+  document
+    .getElementById("sellerEmailDisplay")
+    .textContent = currentSeller.email;
+
+  loadSellerProducts();
+  loadSellerOrders();
+}
+
+
+// تحميل طلبات البائع
+async function loadSellerOrders() {
+
+  const list = document.getElementById("sellerOrdersList");
+  const message = document.getElementById("sellerOrdersMessage");
+
+  message.textContent = "جاري تحميل الطلبات...";
+  list.innerHTML = "";
+
+  try {
+
+    const response = await fetch(
+      API_URL + "/seller-orders/" + currentSeller.id
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success || !Array.isArray(data.orders)) {
+      message.textContent = "تعذر تحميل الطلبات ❌";
+      return;
+    }
+
+    const orders = data.orders;
+
+    if (orders.length === 0) {
+      message.textContent = "لا توجد طلبات على منتجاتك حاليًا";
+      return;
+    }
+
+    message.textContent = "عدد الطلبات: " + orders.length;
+
+    orders.forEach(order => {
+
+      const div = document.createElement("div");
+      div.className = "product";
+
+      const itemsHTML = (order.items || []).map(item => `
+        <p>
+          🛍️ ${item.name}
+          — الكمية: ${item.quantity || 1}
+          — السعر: ${Number(item.price || 0).toLocaleString()} د.ع
+        </p>
+      `).join("");
+
+      div.innerHTML = `
+        <h3>📦 طلب رقم #${order.id}</h3>
+
+        <p>👤 الزبون: ${order.customer.name}</p>
+        <p>📞 الهاتف: ${order.customer.phone}</p>
+        <p>📍 العنوان: ${order.customer.address}</p>
+
+        ${itemsHTML}
+
+        <p>
+          💰 المجموع:
+          <strong>${Number(order.total || 0).toLocaleString()} د.ع</strong>
+        </p>
+
+        <p>📊 حالة الطلب:</p>
+
+        <select
+          onchange="changeSellerOrderStatus(${order.id}, this.value)"
+          style="margin-top:0;">
+
+          <option value="new"
+            ${order.status === "new" ? "selected" : ""}>
+            🆕 جديد
+          </option>
+
+          <option value="processing"
+            ${order.status === "processing" ? "selected" : ""}>
+            ⚙️ قيد التجهيز
+          </option>
+
+          <option value="shipped"
+            ${order.status === "shipped" ? "selected" : ""}>
+            🚚 تم الشحن
+          </option>
+
+          <option value="completed"
+            ${order.status === "completed" ? "selected" : ""}>
+            ✅ مكتمل
+          </option>
+
+        </select>
+
+        <p>📅 ${order.createdAt || ""}</p>
+      `;
+
+      list.appendChild(div);
+    });
+
+  } catch (error) {
+
+    console.error("Seller orders error:", error);
+
+    message.textContent =
+      "حدث خطأ أثناء تحميل الطلبات ❌";
+  }
+}
+
+// تغيير حالة طلب البائع
+async function changeSellerOrderStatus(orderId, status) {
+
+  try {
+
+    const response = await fetch(
+      API_URL + "/orders/" + orderId + "/status",
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          status: status
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      alert(data.message || "تعذر تغيير حالة الطلب ❌");
+      await loadSellerOrders();
+      return;
+    }
+
+    await loadSellerOrders();
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("حدث خطأ أثناء تغيير حالة الطلب ❌");
+
+    await loadSellerOrders();
+  }
+}
+
+
+// تحميل منتجات البائع
+async function loadSellerProducts() {
+
+  const list =
+    document.getElementById("productsList");
+
+  const message =
+    document.getElementById("productsMessage");
+
+  message.textContent =
+    "جاري تحميل المنتجات...";
+
+  try {
+
+    const response = await fetch(
+      API_URL +
+      "/products?seller_id=" +
+      encodeURIComponent(currentSeller.id)
+    );
+
+    const products = await response.json();
+
+    list.innerHTML = "";
+
+    if (!Array.isArray(products)) {
+      message.textContent =
+        products.message || "حدث خطأ";
+      return;
+    }
+
+    if (products.length === 0) {
+      message.textContent =
+        "لا توجد لديك منتجات حاليًا";
+      return;
+    }
+
+    message.textContent =
+      "عدد المنتجات: " + products.length;
+
+    products.forEach(product => {
+
+      const div =
+        document.createElement("div");
+
+      div.className = "product";
+
+      let imageHTML = "";
+
+      if (product.image) {
+        imageHTML =
+          `<img src="${product.image}" alt="">`;
+      }
+
+      div.innerHTML = `
+        ${imageHTML}
+        <h3>${product.name}</h3>
+        <p>💰 السعر: <strong>${product.price}</strong></p>
+        <p>🏷️ التصنيف: ${product.category || "غير محدد"}</p>
+        <p>📝 الوصف: ${product.description || "لا يوجد وصف"}</p>
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button
+            onclick="editSellerProduct(${product.id})"
+            style="background:#1976d2;">
+            ✏️ تعديل
+          </button>
+
+          <button
+            onclick="changeSellerProductImage(${product.id})"
+            style="background:#7b1fa2;">
+            📷 تغيير الصورة
+          </button>
+          <button
+            onclick="deleteSellerProduct(${product.id})"
+            style="background:#d32f2f;">
+            🗑️ حذف
+          </button>
+        </div>
+      `;
+
+      list.appendChild(div);
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    message.textContent =
+      "حدث خطأ أثناء تحميل المنتجات ❌";
+  }
+}
+
+
+
+
+// تعديل منتج البائع
+async function editSellerProduct(productId) {
+
+  if (!currentSeller) {
+    return;
+  }
+
+  const newName = prompt("اسم المنتج الجديد:");
+  if (newName === null || newName.trim() === "") {
+    return;
+  }
+
+  const newPrice = prompt("السعر الجديد:");
+  if (newPrice === null || newPrice.trim() === "") {
+    return;
+  }
+
+  const newCategory = prompt("التصنيف الجديد (electronics / watches / clothes):");
+  if (newCategory === null) {
+    return;
+  }
+
+  const newDescription = prompt("الوصف الجديد:");
+  if (newDescription === null) {
+    return;
+  }
+
+  try {
+
+    const response = await fetch(
+      API_URL + "/products/" + productId +
+      "?seller_id=" + encodeURIComponent(currentSeller.id),
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: newName.trim(),
+          price: Number(newPrice),
+          category: newCategory.trim(),
+          description: newDescription.trim(),
+          image: null,
+          seller_id: currentSeller.id
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      alert(data.message || "تعذر تعديل المنتج ❌");
+      return;
+    }
+
+    alert("تم تعديل المنتج بنجاح ✅");
+
+    await loadSellerProducts();
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("خطأ أثناء التعديل: " + error.message);
+  }
+}
+
+
+
+// تغيير صورة منتج البائع
+async function changeSellerProductImage(productId) {
+
+  if (!currentSeller) {
+    return;
+  }
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+
+  input.onchange = async function () {
+
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+
+    const file = input.files[0];
+
+    try {
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const uploadResponse = await fetch(
+        API_URL + "/upload",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
+
+      const uploadData = await uploadResponse.json();
+
+      if (!uploadResponse.ok || !uploadData.success) {
+        alert(uploadData.message || "فشل رفع الصورة ❌");
+        return;
+      }
+
+      const productsResponse = await fetch(
+        API_URL +
+        "/products?seller_id=" +
+        encodeURIComponent(currentSeller.id)
+      );
+
+      const products = await productsResponse.json();
+
+      const product = products.find(
+        p => Number(p.id) === Number(productId)
+      );
+
+      if (!product) {
+        alert("لم يتم العثور على المنتج ❌");
+        return;
+      }
+
+      const response = await fetch(
+        API_URL + "/products/" + productId +
+        "?seller_id=" + encodeURIComponent(currentSeller.id),
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: product.name,
+            price: Number(product.price),
+            category: product.category,
+            description: product.description,
+            image: uploadData.image,
+            seller_id: currentSeller.id
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        alert(data.message || "تعذر تغيير صورة المنتج ❌");
+        return;
+      }
+
+      alert("تم تغيير صورة المنتج بنجاح ✅");
+
+      await loadSellerProducts();
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("حدث خطأ أثناء تغيير الصورة ❌");
+    }
+  };
+
+  input.click();
+}
+
+
+// حذف منتج البائع
+
+async function deleteSellerProduct(productId) {
+
+  if (!currentSeller) {
+    return;
+  }
+
+  const confirmed = confirm(
+    "هل أنت متأكد من حذف هذا المنتج؟"
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+
+    const response = await fetch(
+      API_URL + "/products/" + productId +
+      "?seller_id=" + encodeURIComponent(currentSeller.id),
+      {
+        method: "DELETE"
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+
+      alert(
+        data.message || "تعذر حذف المنتج ❌"
+      );
+
+      return;
+    }
+
+    alert("تم حذف المنتج بنجاح ✅");
+
+    await loadSellerProducts();
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert(
+      "حدث خطأ أثناء حذف المنتج ❌"
+    );
+  }
+}
+
+
+// إضافة منتج
+
+async function addSellerProduct() {
+
+  const name = document.getElementById("productName").value.trim();
+  const price = document.getElementById("productPrice").value;
+  const category = document.getElementById("productCategory").value;
+  const description = document.getElementById("productDescription").value.trim();
+  const imageInput = document.getElementById("productImage");
+  const message = document.getElementById("addProductMessage");
+
+  if (!name || price === "") {
+    message.textContent = "يرجى إدخال اسم المنتج والسعر";
+    return;
+  }
+
+  if (!currentSeller) {
+    message.textContent = "لم يتم تسجيل دخول البائع";
+    return;
+  }
+
+  message.textContent = "جاري إضافة المنتج...";
+
+  try {
+
+    let image = "";
+
+    if (imageInput.files.length > 0) {
+
+      message.textContent = "جاري رفع الصورة...";
+
+      const formData = new FormData();
+      formData.append("image", imageInput.files[0]);
+
+      const uploadResponse = await fetch(
+        API_URL + "/upload",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
+
+      const uploadData = await uploadResponse.json();
+
+      if (!uploadResponse.ok || !uploadData.success) {
+        message.textContent =
+          uploadData.message || "فشل رفع الصورة";
+        return;
+      }
+
+      image = uploadData.image;
+    }
+
+    message.textContent = "جاري إضافة المنتج...";
+
+    const response = await fetch(
+      API_URL + "/products",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: name,
+          price: Number(price),
+          category: category,
+          description: description,
+          image: image,
+          seller_id: currentSeller.id
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      message.textContent =
+        data.message || "تعذر إضافة المنتج";
+      return;
+    }
+
+    message.textContent =
+      "تمت إضافة المنتج بنجاح ✅";
+
+    document.getElementById("productName").value = "";
+    document.getElementById("productPrice").value = "";
+    document.getElementById("productDescription").value = "";
+    document.getElementById("productImage").value = "";
+
+    await loadSellerProducts();
+
+  } catch (error) {
+
+    console.error(error);
+
+    message.textContent =
+      "حدث خطأ أثناء إضافة المنتج";
+  }
+}
+
+
+// تسجيل الخروج
+function logoutSeller() {
+
+  localStorage.removeItem("currentSeller");
+
+  currentSeller = null;
+
+  document
+    .getElementById("sellerPanel")
+    .classList.add("hidden");
+
+  document
+    .getElementById("loginScreen")
+    .classList.remove("hidden");
+
+  document.getElementById("sellerEmail").value = "";
+  document.getElementById("sellerPassword").value = "";
+
+  document.getElementById("loginMessage").textContent = "";
+}
+
+
+// استعادة الجلسة
+function restoreSellerSession() {
+
+  const saved =
+    localStorage.getItem("currentSeller");
+
+  if (!saved) {
+    return;
+  }
+
+  try {
+
+    currentSeller = JSON.parse(saved);
+
+    if (
+      currentSeller &&
+      currentSeller.id
+    ) {
+      showSellerPanel();
+    }
+
+  } catch (error) {
+
+    localStorage.removeItem("currentSeller");
+  }
+}
+
+
+restoreSellerSession();
+
+</script>
+
+</body>
+</html>

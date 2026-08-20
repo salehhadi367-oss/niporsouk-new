@@ -1,0 +1,122 @@
+  </main>
+
+  <script>
+    document.getElementById("status").textContent = "بدأ JavaScript ✅";
+
+
+    let products = [];
+
+    let cart = [];
+
+    async function loadProducts() {
+
+      try {
+
+        const response = await fetch("http://192.168.1.101:3000/products");
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        products = await response.json();
+
+        const container = document.getElementById("products");
+
+        container.innerHTML = "";
+
+        products.forEach(product => {
+
+          const card = document.createElement("div");
+
+          card.className = "product";
+
+          card.innerHTML = `
+            <h3>${product.name}</h3>
+            <div class="price">السعر: ${product.price}</div>
+            <button onclick="addToCart('${product.id}')">
+              🛒 إضافة إلى السلة
+            </button>
+          `;
+
+          container.appendChild(card);
+
+        });
+
+        document.getElementById("status").textContent =
+          "المنتجات المتاحة";
+
+      } catch (error) {
+
+        document.getElementById("status").textContent =
+          "تعذر تحميل المنتجات: " + error.message;
+
+        console.error(error);
+
+      }
+
+    }
+          "تعذر الاتصال بالسيرفر";
+
+        console.error(error);
+
+      }
+
+    }
+
+    function addToCart(productId) {
+
+      const product = products.find(p => String(p.id) === String(productId));
+
+      if (!product) return;
+
+      cart.push(product);
+
+      document.getElementById("cartCount").textContent = cart.length;
+
+      updateCart();
+
+      alert("تمت إضافة المنتج إلى السلة 🛒");
+
+    }
+
+    function updateCart() {
+
+      const cartItems = document.getElementById("cartItems");
+      const cartTotal = document.getElementById("cartTotal");
+
+      if (cart.length === 0) {
+        cartItems.innerHTML = "السلة فارغة";
+        cartTotal.textContent = "المجموع: 0";
+        return;
+      }
+
+      cartItems.innerHTML = "";
+
+      let total = 0;
+
+      cart.forEach((product, index) => {
+
+        const price = Number(product.price) || 0;
+        total += price;
+
+        const item = document.createElement("div");
+
+        item.innerHTML = `
+          <div style="padding:8px 0; border-bottom:1px solid #ddd;">
+            ${product.name} - ${product.price}
+          </div>
+        `;
+
+        cartItems.appendChild(item);
+
+      });
+
+      cartTotal.textContent = "المجموع: " + total;
+
+    }
+
+    document.getElementById("status").textContent = "JavaScript يعمل ✅";
+
+  </script>
+
+</body>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة البائع</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .product {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+
+    .product img {
+      width: 120px;
+      height: 100px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .price {
+      font-weight: bold;
+      margin: 8px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>🏪 لوحة البائع</h1>
+    <h2 id="sellerName">جاري تحميل بيانات البائع...</h2>
+    <p>المنتجات الخاصة بك</p>
+  </div>
+
+  
+<div class="header">
+  <h2>➕ إضافة منتج جديد</h2>
+
+  <input id="newName" type="text" placeholder="اسم المنتج"
+    style="width:100%; padding:12px; margin:6px 0; box-sizing:border-box;">
+
+  <input id="newPrice" type="number" placeholder="السعر"
+    style="width:100%; padding:12px; margin:6px 0; box-sizing:border-box;">
+
+  <select id="newCategory"
+    style="width:100%; padding:12px; margin:6px 0; box-sizing:border-box;">
+    <option value="electronics">إلكترونيات</option>
+    <option value="watches">ساعات</option>
+    <option value="accessories">إكسسوارات</option>
+  </select>
+
+  <textarea id="newDescription" placeholder="وصف المنتج"
+    style="width:100%; padding:12px; margin:6px 0; box-sizing:border-box;"></textarea>
+
+  <input id="newImage" type="text" placeholder="رابط صورة المنتج"
+    style="width:100%; padding:12px; margin:6px 0; box-sizing:border-box;">
+
+  <button onclick="addSellerProduct()"
+    style="width:100%; padding:13px; margin-top:8px; cursor:pointer;">
+    ➕ إضافة المنتج
+  </button>
+
+  <div id="addResult" style="margin-top:10px;"></div>
+</div>
+
+<div id="products">
+    جاري تحميل المنتجات...
+  </div>
+
+</div>
+
+<script>
+
+const sellerId = 1;
+
+async function loadSellerProducts() {
+
+  try {
+
+    const response = await fetch("http://127.0.0.1:3000/products");
+
+    const products = await response.json();
+
+    const sellerProducts =
+      products.filter(product =>
+        String(product.seller_id) === String(sellerId)
+      );
+
+    if (sellerProducts.length > 0) {
+      document.getElementById("sellerName").textContent =
+        "البائع: " + (sellerProducts[0].seller_name || "أحمد");
+    } else {
+      document.getElementById("sellerName").textContent =
+        "البائع: أحمد";
+    }
+
+    const container = document.getElementById("products");
+
+    container.innerHTML = "";
+
+    if (sellerProducts.length === 0) {
+
+      container.innerHTML =
+        "<div class='product'>لا توجد منتجات لهذا البائع حاليًا.</div>";
+
+      return;
+    }
+
+    sellerProducts.forEach(product => {
+
+      const card = document.createElement("div");
+
+      card.className = "product";
+
+      card.innerHTML = `
+        ${product.image
+          ? `<img src="${product.image}" alt="${product.name}">`
+          : ""
+        }
+
+        <h3>${product.name}</h3>
+
+        <p>${product.description || ""}</p>
+
+        <div class="price">
+          السعر: ${product.price}
+        </div>
+
+        <p>
+          التصنيف: ${product.category || ""}
+        </p>
+
+        <button onclick="editSellerProduct('${product.id}')"
+          style="padding:10px; margin-top:8px; cursor:pointer;">
+          ✏️ تعديل المنتج
+        </button>
+      `;
+
+      container.appendChild(card);
+
+    });
+
+  } catch (error) {
+
+    document.getElementById("products").innerHTML =
+      "❌ تعذر الاتصال بالـBackend";
+
+    console.error(error);
+  }
+}
+
+
+async function addSellerProduct() {
+
+  const name = document.getElementById("newName").value.trim();
+  const price = document.getElementById("newPrice").value;
+  const category = document.getElementById("newCategory").value;
+  const description = document.getElementById("newDescription").value.trim();
+  const image = document.getElementById("newImage").value.trim();
+  const result = document.getElementById("addResult");
+
+  if (!name || price === "") {
+    result.textContent = "❌ اسم المنتج والسعر مطلوبان";
+    return;
+  }
+
+  try {
+
+    const response = await fetch("http://127.0.0.1:3000/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: name,
+        price: Number(price),
+        category: category,
+        description: description,
+        image: image,
+        seller_id: sellerId
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      result.textContent =
+        "❌ " + (data.message || "تعذر إضافة المنتج");
+      return;
+    }
+
+    result.textContent = "✅ تمت إضافة المنتج بنجاح";
+
+    document.getElementById("newName").value = "";
+    document.getElementById("newPrice").value = "";
+    document.getElementById("newDescription").value = "";
+    document.getElementById("newImage").value = "";
+
+    await loadSellerProducts();
+
+  } catch (error) {
+
+    result.textContent = "❌ تعذر الاتصال بالخادم";
+    console.error(error);
+
+  }
+}
+
+loadSellerProducts();
+
+</script>
+
+</body>
+</html>

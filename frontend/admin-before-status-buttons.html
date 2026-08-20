@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Marketplace - لوحة الإدارة</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    button {
+      padding: 10px 18px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .order {
+      background: white;
+      padding: 18px;
+      margin-bottom: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .order h2 {
+      margin-top: 0;
+    }
+
+    .items {
+      background: #f8f8f8;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
+    }
+
+    .status {
+      text-align: center;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>🧑‍💼 لوحة إدارة Mini Marketplace</h1>
+
+  <div id="status" class="status">
+    جاري تحميل الطلبات...
+  </div>
+
+  <button onclick="loadOrders()">🔄 تحديث الطلبات</button>
+
+  <div id="orders"></div>
+
+  <script>
+
+    async function loadOrders() {
+
+      const status = document.getElementById("status");
+      const ordersBox = document.getElementById("orders");
+
+      status.textContent = "جاري تحميل الطلبات...";
+      ordersBox.innerHTML = "";
+
+      try {
+
+        const response = await fetch(
+          "http://192.168.1.101:3000/orders"
+        );
+
+        const orders = await response.json();
+
+        if (orders.length === 0) {
+          status.textContent = "لا توجد طلبات حاليًا";
+          return;
+        }
+
+        status.textContent =
+          "عدد الطلبات: " + orders.length;
+
+        orders.reverse().forEach(order => {
+
+          const div = document.createElement("div");
+
+          div.className = "order";
+
+          let itemsHTML = "";
+
+          order.items.forEach(item => {
+
+            itemsHTML += `
+              <div>
+                ${item.name}
+                × ${item.quantity}
+                = ${item.price * item.quantity}
+              </div>
+            `;
+
+          });
+
+          div.innerHTML = `
+            <h2>📦 الطلب #${order.id}</h2>
+
+            <div>
+              <strong>👤 الاسم:</strong>
+              ${order.customer.name}
+            </div>
+
+            <div>
+              <strong>📱 الهاتف:</strong>
+              ${order.customer.phone}
+            </div>
+
+            <div>
+              <strong>📍 العنوان:</strong>
+              ${order.customer.address}
+            </div>
+
+            <div class="items">
+              <strong>🛒 المنتجات:</strong>
+              ${itemsHTML}
+            </div>
+
+            <p><strong>📌 الحالة:</strong> ${order.status === "new" ? "🆕 جديد" : order.status}</p>
+            <p>
+              <strong>💰 المجموع:</strong>
+              ${order.total} دينار
+            </p>
+
+            <small>
+              🕒 ${order.createdAt}
+            </small>
+          `;
+
+          ordersBox.appendChild(div);
+
+        });
+
+      } catch (error) {
+
+        status.textContent =
+          "تعذر الاتصال بالسيرفر ❌";
+
+        console.error(error);
+
+      }
+
+    }
+
+    loadOrders();
+
+  </script>
+
+</body>
+</html>
