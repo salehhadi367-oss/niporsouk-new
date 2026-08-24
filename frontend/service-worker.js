@@ -1,4 +1,4 @@
-const CACHE_NAME = "nebour-souk-v4";
+const CACHE_NAME = "nebour-souk-v5";
 
 const FILES_TO_CACHE = [
   "./",
@@ -28,7 +28,28 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("fetch", event => {
+  const request = event.request;
+
+  // لا نتدخل بطلبات API أو المواقع الخارجية
+  if (
+    request.method !== "GET" ||
+    !request.url.startsWith(self.location.origin)
+  ) {
+    return;
+  }
+
+  // ملفات التطبيق: الشبكة أولاً، والكاش فقط عند انقطاع الشبكة
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(request)
+      .then(response => {
+        const copy = response.clone();
+
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(request, copy);
+        });
+
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });
