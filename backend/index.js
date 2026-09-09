@@ -401,6 +401,437 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url === '/restaurant-register' && req.method === 'POST') {
+    let body = "";
+    req.on("data", chunk => { body += chunk; });
+    req.on("end", () => {
+      try {
+        const data = JSON.parse(body);
+        if (!data.name || !data.email || !data.password) {
+          sendJSON(res, { success: false, message: "الاسم والبريد وكلمة المرور مطلوبة" }, 400);
+          return;
+        }
+        const existing = db.prepare("SELECT id FROM restaurant_accounts WHERE email = ?").get(data.email);
+        if (existing) {
+          sendJSON(res, { success: false, message: "هذا البريد مسجل مسبقًا" }, 409);
+          return;
+        }
+        const password = hashPassword(data.password);
+        const result = db.prepare(
+          "INSERT INTO restaurant_accounts (name, phone, email, password) VALUES (?, ?, ?, ?)"
+        ).run(data.name, data.phone || "", data.email, password);
+        sendJSON(res, {
+          success: true,
+          message: "تم إنشاء حساب المطعم بنجاح",
+          restaurantAccount: {
+            id: Number(result.lastInsertRowid),
+            name: data.name,
+            phone: data.phone || "",
+            email: data.email
+          }
+        });
+      } catch (error) {
+        console.error("Restaurant register error:", error);
+        sendJSON(res, { success: false, message: "بيانات التسجيل غير صحيحة" }, 400);
+      }
+    });
+    return;
+  }
+
+  if (req.url === '/restaurant-login' && req.method === 'POST') {
+    let body = "";
+    req.on("data", chunk => { body += chunk; });
+    req.on("end", () => {
+      try {
+        const data = JSON.parse(body);
+        if (!data.email || !data.password) {
+          sendJSON(res, { success: false, message: "البريد الإلكتروني وكلمة المرور مطلوبان" }, 400);
+          return;
+        }
+        const account = db.prepare(
+          "SELECT id, name, phone, email, password, status FROM restaurant_accounts WHERE email = ?"
+        ).get(data.email);
+
+        if (!account || !verifyPassword(data.password, account.password)) {
+          sendJSON(res, { success: false, message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }, 401);
+          return;
+        }
+
+        if (account.status !== "active") {
+          sendJSON(res, { success: false, message: "حساب المطعم غير مفعّل" }, 403);
+          return;
+        }
+
+        const token = createSession("restaurant", account.id);
+        sendJSON(res, {
+          success: true,
+          message: "تم تسجيل دخول المطعم بنجاح",
+          token,
+          restaurantAccount: {
+            id: account.id,
+            name: account.name,
+            phone: account.phone,
+            email: account.email
+          }
+        });
+      } catch (error) {
+        console.error("Restaurant login error:", error);
+        sendJSON(res, { success: false, message: "بيانات غير صحيحة" }, 400);
+      }
+    });
+    return;
+  }
+
+
+
+  // ===== Public Restaurants List =====
+  if (req.url === '/restaurants' && req.method === 'GET') {
+    try {
+      const restaurants = db.prepare(
+        "SELECT id, name, phone, address, image, status FROM restaurants WHERE status = 'active' ORDER BY id DESC"
+      ).all();
+
+      sendJSON(res, {
+        success: true,
+        restaurants
+      });
+    } catch (error) {
+      console.error('Restaurants list error:', error);
+      sendJSON(res, {
+        success: false,
+        message: 'حدث خطأ أثناء تحميل المطاعم'
+      }, 500);
+    }
+    return;
+  }
+
+
+  // ===== Public Restaurant Items =====
+  if (req.method === 'GET' && req.url.startsWith('/restaurant-items/')) {
+    try {
+      const restaurantId = Number(req.url.split('/')[2]);
+
+      if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
+        sendJSON(res, { success:false, message:'معرف المطعم غير صحيح' }, 400);
+        return;
+      }
+
+      const restaurant = db.prepare(
+        "SELECT id, name, phone, address, image FROM restaurants WHERE id = ? AND status = 'active'"
+      ).get(restaurantId);
+
+      if (!restaurant) {
+        sendJSON(res, { success:false, message:'المطعم غير موجود' }, 404);
+        return;
+      }
+
+      const items = db.prepare(
+        "SELECT id, restaurant_id, name, price, description, image, category FROM restaurant_items WHERE restaurant_id = ? AND active = 1 ORDER BY id DESC"
+      ).all(restaurantId);
+
+      sendJSON(res, {
+        success:true,
+        restaurant,
+        items
+      });
+    } catch (error) {
+      console.error('Public restaurant items error:', error);
+      sendJSON(res, {
+        success:false,
+        message:'حدث خطأ أثناء تحميل وجبات المطعم'
+      }, 500);
+    }
+    return;
+  }
+
+  // ===== Restaurant API =====
+  if (req.url === '/restaurants' && req.method === 'POST') {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'restaurant') {
+      sendJSON(res, { success: false, message: 'غير مصرح لك بإضافة مطعم' }, 401);
+      return;
+    }
+
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+
+        if (!data.name) {
+          sendJSON(res, { success: false, message: 'اسم المطعم مطلوب' }, 400);
+          return;
+        }
+
+        const existing = db.prepare(
+          'SELECT id FROM restaurants WHERE account_id = ?'
+        ).get(session.userId);
+
+        if (existing) {
+          sendJSON(res, {
+            success: false,
+            message: 'لديك مطعم مسجل مسبقًا'
+          }, 409);
+          return;
+        }
+
+        const result = db.prepare(
+          'INSERT INTO restaurants (name, phone, address, image, status, account_id) VALUES (?, ?, ?, ?, ?, ?)'
+        ).run(
+          data.name,
+          data.phone || '',
+          data.address || '',
+          data.image || '',
+          'active',
+          session.userId
+        );
+
+        sendJSON(res, {
+          success: true,
+          message: 'تم إضافة المطعم بنجاح',
+          restaurant: {
+            id: Number(result.lastInsertRowid),
+            name: data.name,
+            phone: data.phone || '',
+            address: data.address || '',
+            image: data.image || '',
+            status: 'active',
+            account_id: session.userId
+          }
+        });
+      } catch (error) {
+        console.error('Restaurant create error:', error);
+        sendJSON(res, {
+          success: false,
+          message: 'حدث خطأ أثناء إضافة المطعم'
+        }, 500);
+      }
+    });
+
+    return;
+  }
+
+  if (req.url === '/restaurants/my' && req.method === 'GET') {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'restaurant') {
+      sendJSON(res, {
+        success: false,
+        message: 'غير مصرح لك'
+      }, 401);
+      return;
+    }
+
+    const restaurant = db.prepare(
+      'SELECT id, name, phone, address, image, status, account_id FROM restaurants WHERE account_id = ?'
+    ).get(session.userId);
+
+    sendJSON(res, {
+      success: true,
+      restaurant: restaurant || null
+    });
+
+    return;
+  }
+
+
+  // ===== Restaurant Items API =====
+  if (req.url === '/restaurant-items' && req.method === 'POST') {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'restaurant') {
+      sendJSON(res, { success: false, message: 'غير مصرح لك بإضافة وجبة' }, 401);
+      return;
+    }
+
+    const restaurant = db.prepare(
+      'SELECT id FROM restaurants WHERE account_id = ?'
+    ).get(session.userId);
+
+    if (!restaurant) {
+      sendJSON(res, { success: false, message: 'يجب إضافة المطعم أولًا' }, 404);
+      return;
+    }
+
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+
+        if (!data.name || data.price === undefined) {
+          sendJSON(res, {
+            success: false,
+            message: 'اسم الوجبة والسعر مطلوبان'
+          }, 400);
+          return;
+        }
+
+        const result = db.prepare(
+          'INSERT INTO restaurant_items (restaurant_id, name, price, description, image, category) VALUES (?, ?, ?, ?, ?, ?)'
+        ).run(
+          restaurant.id,
+          data.name,
+          Number(data.price),
+          data.description || '',
+          data.image || '',
+          data.category || 'وجبات'
+        );
+
+        sendJSON(res, {
+          success: true,
+          message: 'تمت إضافة الوجبة بنجاح',
+          item: {
+            id: Number(result.lastInsertRowid),
+            restaurant_id: restaurant.id,
+            name: data.name,
+            price: Number(data.price),
+            description: data.description || '',
+            image: data.image || '',
+            category: data.category || 'وجبات',
+            active: 1
+          }
+        });
+      } catch (error) {
+        console.error('Restaurant item create error:', error);
+        sendJSON(res, {
+          success: false,
+          message: 'حدث خطأ أثناء إضافة الوجبة'
+        }, 500);
+      }
+    });
+
+    return;
+  }
+
+
+  // ===== Restaurant Item Edit/Delete =====
+  if (req.method === 'PUT' && req.url.startsWith('/restaurant-items/')) {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'restaurant') {
+      sendJSON(res, { success:false, message:'غير مصرح لك' }, 401);
+      return;
+    }
+
+    const itemId = Number(req.url.split('/')[2]);
+    if (!Number.isInteger(itemId) || itemId <= 0) {
+      sendJSON(res, { success:false, message:'معرف الوجبة غير صحيح' }, 400);
+      return;
+    }
+
+    const restaurant = db.prepare(
+      'SELECT id FROM restaurants WHERE account_id = ?'
+    ).get(session.userId);
+
+    if (!restaurant) {
+      sendJSON(res, { success:false, message:'المطعم غير موجود' }, 404);
+      return;
+    }
+
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+
+        const item = db.prepare(
+          'SELECT id FROM restaurant_items WHERE id = ? AND restaurant_id = ?'
+        ).get(itemId, restaurant.id);
+
+        if (!item) {
+          sendJSON(res, { success:false, message:'الوجبة غير موجودة' }, 404);
+          return;
+        }
+
+        db.prepare(
+          'UPDATE restaurant_items SET name = ?, price = ?, description = ?, category = ? WHERE id = ? AND restaurant_id = ?'
+        ).run(
+          data.name,
+          Number(data.price),
+          data.description || '',
+          data.category || 'وجبات',
+          itemId,
+          restaurant.id
+        );
+
+        sendJSON(res, { success:true, message:'تم تعديل الوجبة بنجاح' });
+      } catch (error) {
+        console.error('Restaurant item update error:', error);
+        sendJSON(res, { success:false, message:'حدث خطأ أثناء تعديل الوجبة' }, 500);
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'DELETE' && req.url.startsWith('/restaurant-items/')) {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'restaurant') {
+      sendJSON(res, { success:false, message:'غير مصرح لك' }, 401);
+      return;
+    }
+
+    const itemId = Number(req.url.split('/')[2]);
+
+    const restaurant = db.prepare(
+      'SELECT id FROM restaurants WHERE account_id = ?'
+    ).get(session.userId);
+
+    if (!restaurant) {
+      sendJSON(res, { success:false, message:'المطعم غير موجود' }, 404);
+      return;
+    }
+
+    const result = db.prepare(
+      'UPDATE restaurant_items SET active = 0 WHERE id = ? AND restaurant_id = ?'
+    ).run(itemId, restaurant.id);
+
+    if (result.changes === 0) {
+      sendJSON(res, { success:false, message:'الوجبة غير موجودة' }, 404);
+      return;
+    }
+
+    sendJSON(res, { success:true, message:'تم حذف الوجبة بنجاح' });
+    return;
+  }
+
+  if (req.url === '/restaurant-items/my' && req.method === 'GET') {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'restaurant') {
+      sendJSON(res, { success: false, message: 'غير مصرح لك' }, 401);
+      return;
+    }
+
+    const restaurant = db.prepare(
+      'SELECT id FROM restaurants WHERE account_id = ?'
+    ).get(session.userId);
+
+    if (!restaurant) {
+      sendJSON(res, {
+        success: false,
+        message: 'المطعم غير موجود'
+      }, 404);
+      return;
+    }
+
+    const items = db.prepare(
+      'SELECT id, restaurant_id, name, price, description, image, category, active FROM restaurant_items WHERE restaurant_id = ? ORDER BY id DESC'
+    ).all(restaurant.id);
+
+    sendJSON(res, {
+      success: true,
+      items
+    });
+
+    return;
+  }
+
   if (req.url === '/upload' && req.method === 'POST') {
     console.log("UPLOAD AUTH:", req.headers.authorization || "NO AUTH");
     console.log("UPLOAD SESSION:", getSession(req));
@@ -974,6 +1405,34 @@ if (req.url === '/admin-stats' && req.method === 'GET') {
 
     return;
   }
+
+// ===== Admin Restaurants =====
+if (req.url === '/admin/restaurants' && req.method === 'GET') {
+  if (!requireSession(req, "admin")) {
+    sendJSON(res, { success: false, message: "غير مصرح" }, 401);
+    return;
+  }
+
+  try {
+    const restaurants = db.prepare(
+      `SELECT id, name, phone, address, image, status, account_id
+       FROM restaurants
+       ORDER BY id DESC`
+    ).all();
+
+    sendJSON(res, {
+      success: true,
+      restaurants
+    });
+  } catch (error) {
+    console.error("Admin restaurants error:", error);
+    sendJSON(res, {
+      success: false,
+      message: "تعذر تحميل المطاعم"
+    }, 500);
+  }
+  return;
+}
 
 if (req.url === '/sellers' && req.method === 'GET') {
     if (!requireSession(req, "admin")) {
@@ -1686,26 +2145,54 @@ let serverTotal = 0;
 const validatedItems = [];
 
 for (const item of data.items) {
-  const product = db.prepare(
-    'SELECT id, seller_id, price FROM products WHERE id = ?'
-  ).get(item.id);
-
-  if (!product) {
-    throw new Error('المنتج غير موجود: ' + item.id);
-  }
-
   const quantity = Number(item.quantity) || 1;
-  const price = Number(product.price) || 0;
 
-  serverTotal += price * quantity;
+  if (item.cartType === 'restaurant') {
+    const restaurantItem = db.prepare(
+      "SELECT id, restaurant_id, name, price FROM restaurant_items WHERE id = ? AND active = 1"
+    ).get(item.id);
 
-  validatedItems.push({
-    id: product.id,
-    name: item.name,
-    price: price,
-    quantity: quantity,
-    seller_id: product.seller_id
-  });
+    if (!restaurantItem) {
+      throw new Error('وجبة المطعم غير موجودة: ' + item.id);
+    }
+
+    const price = Number(restaurantItem.price) || 0;
+
+    serverTotal += price * quantity;
+
+    validatedItems.push({
+      id: restaurantItem.id,
+      name: restaurantItem.name,
+      price: price,
+      quantity: quantity,
+      seller_id: null,
+      restaurant_item_id: restaurantItem.id,
+      restaurant_id: restaurantItem.restaurant_id,
+      cartType: 'restaurant'
+    });
+
+  } else {
+    const product = db.prepare(
+      'SELECT id, seller_id, price FROM products WHERE id = ?'
+    ).get(item.id);
+
+    if (!product) {
+      throw new Error('المنتج غير موجود: ' + item.id);
+    }
+
+    const price = Number(product.price) || 0;
+
+    serverTotal += price * quantity;
+
+    validatedItems.push({
+      id: product.id,
+      name: item.name,
+      price: price,
+      quantity: quantity,
+      seller_id: product.seller_id,
+      cartType: 'product'
+    });
+  }
 }
 
 const insert = db.prepare(`
@@ -1729,17 +2216,19 @@ insert.run(
 
 const insertItem = db.prepare(`
   INSERT INTO order_items
-  (order_id, product_id, seller_id, quantity, price)
-  VALUES (?, ?, ?, ?, ?)
+  (order_id, product_id, seller_id, quantity, price, restaurant_item_id, restaurant_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
 for (const item of validatedItems) {
   insertItem.run(
     orderId,
-    item.id,
+    item.cartType === 'restaurant' ? null : item.id,
     item.seller_id,
     item.quantity,
-    item.price
+    item.price,
+    item.restaurant_item_id || null,
+    item.restaurant_id || null
   );
 }
         sendJSON(res, {

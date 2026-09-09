@@ -212,6 +212,12 @@
   </div>
 </div>
 
+<!-- إدارة المطاعم -->
+<div style="background:white;padding:20px;margin:20px 0;border-radius:12px;">
+<h2>🍽️ إدارة المطاعم</h2>
+<button onclick="loadAdminRestaurants()">🔄 تحديث المطاعم</button>
+<div id="adminRestaurantsList" style="margin-top:15px;">جاري تحميل المطاعم...</div>
+</div>
 <!-- إدارة المندوبين -->
 <div style="background:white; padding:20px; margin:20px 0; border-radius:12px;">
   <h2>🚚 إدارة المندوبين</h2>
@@ -1182,6 +1188,24 @@ async function deleteSeller(id) {
   }
 }
 
+async function loadAdminRestaurants() {
+  const box = document.getElementById("adminRestaurantsList");
+  try {
+    const response = await adminFetch("http://127.0.0.1:3000/admin/restaurants");
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.message || "تعذر تحميل المطاعم");
+    if (!data.restaurants || !data.restaurants.length) {
+      box.innerHTML = "<p>لا توجد مطاعم حاليًا.</p>";
+      return;
+    }
+    box.innerHTML = data.restaurants.map(r => `<div style="background:#f8f8f8;padding:15px;margin-bottom:10px;border-radius:10px;"><h3>🍽️ ${r.name}</h3><p>📞 ${r.phone || "لا يوجد رقم"}</p><p>📍 ${r.address || "العنوان غير محدد"}</p><p>الحالة: <strong>${r.status === "active" ? "🟢 فعال" : "🔴 متوقف"}</strong></p></div>`).join("");
+  } catch (error) {
+    box.innerHTML = "<p style='color:#b91c1c;'>تعذر تحميل المطاعم ❌</p>";
+    console.error("Admin restaurants error:", error);
+  }
+}
+
+loadAdminRestaurants();
 updateDashboard();
 loadSellers();
 loadOrders();
