@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مندوب نيبور سوق</title>
+<style>
+body{font-family:Arial;background:#f3f7f6;margin:0;padding:15px}
+.box{max-width:700px;margin:auto}
+.card{background:white;padding:18px;margin:12px 0;border-radius:15px}
+input,button{width:100%;padding:13px;margin:6px 0;box-sizing:border-box;border-radius:10px;font-size:16px}
+button{border:0;background:#0f766e;color:white;font-weight:bold}
+.red{background:#b91c1c}
+.hide{display:none}
+.order{border:1px solid #ddd;padding:12px;margin:10px 0;border-radius:10px}
+.msg{text-align:center;font-weight:bold;padding:8px}
+</style>
+</head>
+<body>
+<div class="box">
+<div id="auth" class="card">
+<h1>🚚 نيبور سوق</h1>
+<h2>دخول المندوب</h2>
+<input id="email" type="email" placeholder="البريد الإلكتروني">
+<input id="password" type="password" placeholder="كلمة المرور">
+<button onclick="login()">🔐 تسجيل الدخول</button>
+<hr>
+<h2>تسجيل مندوب جديد</h2>
+<input id="name" placeholder="الاسم الكامل">
+<input id="phone" placeholder="رقم الهاتف">
+<input id="newEmail" type="email" placeholder="البريد الإلكتروني">
+<input id="newPassword" type="password" placeholder="كلمة المرور">
+<button onclick="register()">📝 إنشاء حساب</button>
+<div id="msg" class="msg"></div>
+</div>
+<div id="dashboard" class="hide">
+<div class="card">
+<h1>🚚 لوحة المندوب</h1>
+<div id="agentInfo"></div>
+<button class="red" onclick="logout()">تسجيل الخروج</button>
+</div>
+
+<div class="card">
+<h2>📋 الطلبات المتاحة</h2>
+<button onclick="loadAvailableOrders()">🔄 تحديث الطلبات</button>
+<div id="availableOrders">جاري التحميل...</div>
+</div>
+
+<div class="card">
+<h2>📦 طلباتي</h2>
+<button onclick="loadMyOrders()">🔄 تحديث طلباتي</button>
+<div id="myOrders">لا توجد طلبات مستلمة</div>
+</div>
+</div>
+<script>
+const API="http://127.0.0.1:3000";
+let token=localStorage.getItem("deliveryToken")||"";
+let agent=JSON.parse(localStorage.getItem("deliveryAgent")||"null");
+
+function showMessage(text){
+  document.getElementById("msg").textContent=text;
+}
+
+async function login(){
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("password").value;
+
+  if(!email||!password){
+    showMessage("⚠️ أدخل البريد وكلمة المرور");
+    return;
+  }
+
+  showMessage("⏳ جاري تسجيل الدخول...");
+
+  try{
+    const r=await fetch(API+"/delivery-login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email,password})
+    });
+
+    const d=await r.json();
+
+    if(!d.success){
+      showMessage("❌ "+d.message);
+      return;
+    }
+
+    token=d.token;
+    agent=d.deliveryAgent;
+
+    localStorage.setItem("deliveryToken",token);
+    localStorage.setItem("deliveryAgent",JSON.stringify(agent));
+
+    openDashboard();
+  }catch(e){
+    showMessage("❌ تعذر الاتصال بالسيرفر");
+    console.error(e);
+  }
+}
+
+async function register(){
+  const name=document.getElementById("name").value.trim();
+  const phone=document.getElementById("phone").value.trim();
+  const email=document.getElementById("newEmail").value.trim();
+  const password=document.getElementById("newPassword").value;
+
+  if(!name||!phone||!email||!password){
+    showMessage("⚠️ أكمل جميع الحقول");
+    return;
+  }
+
+  showMessage("⏳ جاري إنشاء الحساب...");
+
+  try{
+    const r=await fetch(API+"/delivery-register",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name,phone,email,password})
+    });
+
+    const d=await r.json();
+
+    if(!d.success){
+      showMessage("❌ "+d.message);
+      return;
+    }
+
+    showMessage("✅ تم إنشاء الحساب. يمكنك تسجيل الدخول الآن");
+    document.getElementById("email").value=email;
+    document.getElementById("password").value=password;
+  }catch(e){
+    showMessage("❌ تعذر الاتصال بالسيرفر");
+    console.error(e);
+  }
+}
+
+function openDashboard(){
+  document.getElementById("auth").classList.add("hide");
+  document.getElementById("dashboard").classList.remove("hide");
+
+  document.getElementById("agentInfo").textContent=
+    "👤 "+agent.name+" | 📞 "+agent.phone;
+
+  loadAvailableOrders();
+  loadMyOrders();
+}
+async function loadAvailableOrders(){
+  const box=document.getElementById("availableOrders");
+  box.textContent="⏳ جاري تحميل الطلبات...";
+
+  try{
+    const r=await fetch(API+"/delivery-orders",{
+      headers:{Authorization:"Bearer "+token}
+    });
+
+    const d=await r.json();
+
+    if(!d.success){
+      box.textContent="❌ "+d.message;
+      return;
+    }
+
+    if(!d.orders.length){
+      box.textContent="لا توجد طلبات متاحة حاليًا";
+      return;
+    }
+
+    box.innerHTML=d.orders.map(o=>`
+      <div class="order">
+        <b>📦 الطلب #${o.id}</b>
+        <p>👤 ${o.name}</p>
+        <p>📞 ${o.phone}</p>
+        <p>📍 ${o.address}</p>
+        <p>💰 ${Number(o.total).toLocaleString()} دينار</p>
+        <p>الحالة: ${o.status}</p>
+        <button onclick="claimOrder(${o.id})">
+          🚚 استلام هذا الطلب
+        </button>
+      </div>
+    `).join("");
+
+  }catch(e){
+    box.textContent="❌ تعذر الاتصال بالسيرفر";
+    console.error(e);
+  }
+}
+
+async function claimOrder(id){
+  if(!confirm("هل تريد استلام الطلب #"+id+"؟")) return;
+
+  try{
+    const r=await fetch(API+"/delivery-orders/"+id+"/claim",{
+      method:"PUT",
+      headers:{Authorization:"Bearer "+token}
+    });
+
+    const d=await r.json();
+
+    if(!d.success){
+      alert("❌ "+d.message);
+      return;
+    }
+
+    alert("✅ تم استلام الطلب بنجاح");
+    loadAvailableOrders();
+    loadMyOrders();
+
+  }catch(e){
+    alert("❌ تعذر الاتصال بالسيرفر");
+    console.error(e);
+  }
+}
+async function loadMyOrders(){
+  const box=document.getElementById("myOrders");
+  box.textContent="⏳ جاري تحميل طلباتك...";
+
+  try{
+    const r=await fetch(API+"/delivery-my-orders",{
+      headers:{Authorization:"Bearer "+token}
+    });
+
+    const d=await r.json();
+
+    if(!d.success){
+      box.textContent="❌ "+d.message;
+      return;
+    }
+
+    if(!d.orders.length){
+      box.textContent="لا توجد طلبات مستلمة";
+      return;
+    }
+
+    box.innerHTML=d.orders.map(o=>`
+      <div class="order">
+        <b>📦 الطلب #${o.id}</b>
+        <p>👤 ${o.name}</p>
+        <p>📞 ${o.phone}</p>
+        <p>📍 ${o.address}</p>
+        <p>💰 ${Number(o.total).toLocaleString()} دينار</p>
+        <p class="status">الحالة: ${o.status}</p>
+
+        <button onclick="updateOrderStatus(${o.id},'shipped')">
+          🚚 تم الشحن
+        </button>
+
+        <button onclick="updateOrderStatus(${o.id},'completed')">
+          ✅ تم التوصيل
+        </button>
+      </div>
+    `).join("");
+
+  }catch(e){
+    box.textContent="❌ تعذر الاتصال بالسيرفر";
+    console.error(e);
+  }
+}
+
+async function updateOrderStatus(id,status){
+  try{
+    const r=await fetch(API+"/delivery-my-orders/"+id+"/status",{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer "+token
+      },
+      body:JSON.stringify({status})
+    });
+
+    const d=await r.json();
+
+    if(!d.success){
+      alert("❌ "+d.message);
+      return;
+    }
+
+    alert("✅ تم تحديث حالة الطلب");
+    loadMyOrders();
+
+  }catch(e){
+    alert("❌ تعذر الاتصال بالسيرفر");
+    console.error(e);
+  }
+}
+
+function logout(){
+  localStorage.removeItem("deliveryToken");
+  localStorage.removeItem("deliveryAgent");
+  token="";
+  agent=null;
+
+  document.getElementById("dashboard").classList.add("hide");
+  document.getElementById("auth").classList.remove("hide");
+  showMessage("تم تسجيل الخروج");
+}
+
+if(token && agent){
+  openDashboard();
+}
+</script>
+</body>
+</html>
