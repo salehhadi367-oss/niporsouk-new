@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نيبور سوق - المطعم</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f5f7f8;margin:0;padding:15px}
+.container{max-width:700px;margin:auto}
+.card{background:#fff;padding:18px;margin:15px 0;border-radius:14px;box-shadow:0 2px 8px #ddd}
+h1,h2{text-align:center}
+input,textarea,button{box-sizing:border-box;width:100%;padding:12px;margin:6px 0;border-radius:8px}
+input,textarea{border:1px solid #ddd}
+button{background:#0f766e;color:#fff;border:0;cursor:pointer;font-weight:bold}
+.secondary{background:#555}
+.hidden{display:none}
+.item{border:1px solid #eee;padding:12px;margin:10px 0;border-radius:10px}
+.msg{text-align:center;font-weight:bold;margin:10px}
+.back{text-decoration:none;display:block;text-align:center;margin:15px}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div id="auth">
+<div class="card">
+<h1>🍽️ دخول المطعم</h1>
+<input id="loginEmail" type="email" placeholder="البريد الإلكتروني">
+<input id="loginPassword" type="password" placeholder="كلمة المرور">
+<button onclick="login()">🔐 تسجيل الدخول</button>
+<p id="loginMsg" class="msg"></p>
+</div>
+
+<div class="card">
+<h2>📝 إنشاء حساب مطعم</h2>
+<input id="regName" placeholder="اسم المطعم">
+<input id="regPhone" placeholder="رقم الهاتف">
+<input id="regEmail" type="email" placeholder="البريد الإلكتروني">
+<input id="regPassword" type="password" placeholder="كلمة المرور">
+<button onclick="register()">➕ إنشاء الحساب</button>
+<p id="regMsg" class="msg"></p>
+</div>
+</div>
+
+<div id="dashboard" class="hidden">
+
+<div class="card">
+<h1>🍽️ لوحة المطعم</h1>
+<p id="restaurantInfo"></p>
+<button class="secondary" onclick="logout()">🚪 تسجيل الخروج</button>
+</div>
+
+<div id="createRestaurant" class="card hidden">
+<h2>🏪 معلومات المطعم</h2>
+<input id="restaurantName" placeholder="اسم المطعم">
+<input id="restaurantPhone" placeholder="رقم الهاتف">
+<input id="restaurantAddress" placeholder="العنوان">
+<button onclick="createRestaurant()">💾 حفظ معلومات المطعم</button>
+<p id="restaurantMsg" class="msg"></p>
+</div>
+
+<div id="menu" class="card hidden">
+<h2>🍔 إدارة الوجبات</h2>
+<input id="itemName" placeholder="اسم الوجبة">
+<input id="itemPrice" type="number" placeholder="السعر">
+<textarea id="itemDescription" placeholder="وصف الوجبة"></textarea>
+<input id="itemCategory" placeholder="التصنيف" value="وجبات">
+<button onclick="addItem()">➕ إضافة الوجبة</button>
+<p id="itemMsg" class="msg"></p>
+
+<h3>📋 وجباتي</h3>
+<div id="itemsList">جاري التحميل...</div>
+</div>
+
+</div>
+
+<a class="back" href="./index.html">⬅️ العودة للمتجر</a>
+</div>
+
+<script>
+const API="http://127.0.0.1:3000";
+let token=localStorage.getItem("restaurantToken");
+let account=null;
+
+function showDashboard(){
+  document.getElementById("auth").classList.add("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
+}
+
+async function register(){
+  const msg=document.getElementById("regMsg");
+  try{
+    const r=await fetch(API+"/restaurant-register",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        name:document.getElementById("regName").value.trim(),
+        phone:document.getElementById("regPhone").value.trim(),
+        email:document.getElementById("regEmail").value.trim(),
+        password:document.getElementById("regPassword").value
+      })
+    });
+    const d=await r.json();
+    msg.textContent=d.message;
+  }catch(e){msg.textContent="تعذر الاتصال بالسيرفر";}
+}
+
+async function login(){
+  const msg=document.getElementById("loginMsg");
+  try{
+    const r=await fetch(API+"/restaurant-login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        email:document.getElementById("loginEmail").value.trim(),
+        password:document.getElementById("loginPassword").value
+      })
+    });
+    const d=await r.json();
+    if(!d.success){msg.textContent=d.message;return;}
+    token=d.token;
+    account=d.restaurantAccount;
+    localStorage.setItem("restaurantToken",token);
+    localStorage.setItem("restaurantAccount",JSON.stringify(account));
+    showDashboard();
+    loadRestaurant();
+  }catch(e){msg.textContent="تعذر الاتصال بالسيرفر";}
+}
+
+async function loadRestaurant(){
+ 
+  try{
+    const r=await fetch(API+"/restaurants/my",{
+      headers:{Authorization:"Bearer "+token}
+    });
+    const d=await r.json();
+
+    if(!d.restaurant){
+      document.getElementById("createRestaurant").classList.remove("hidden");
+      document.getElementById("menu").classList.add("hidden");
+      return;
+    }
+
+    document.getElementById("createRestaurant").classList.add("hidden");
+    document.getElementById("menu").classList.remove("hidden");
+
+    document.getElementById("restaurantInfo").textContent=
+      "🏪 "+d.restaurant.name+" | 📞 "+(d.restaurant.phone||"")+" | 📍 "+(d.restaurant.address||"");
+
+    loadItems();
+  }catch(e){
+    document.getElementById("restaurantInfo").textContent="تعذر الاتصال بالسيرفر";
+  }
+}
+
+async function createRestaurant(){
+  const msg=document.getElementById("restaurantMsg");
+  try{
+    const r=await fetch(API+"/restaurants",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer "+token
+      },
+      body:JSON.stringify({
+        name:document.getElementById("restaurantName").value.trim(),
+        phone:document.getElementById("restaurantPhone").value.trim(),
+        address:document.getElementById("restaurantAddress").value.trim()
+      })
+    });
+    const d=await r.json();
+    msg.textContent=d.message;
+    if(d.success) loadRestaurant();
+  }catch(e){msg.textContent="تعذر الاتصال بالسيرفر";}
+}
+
+async function addItem(){
+  const msg=document.getElementById("itemMsg");
+  try{
+    const r=await fetch(API+"/restaurant-items",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer "+token
+      },
+      body:JSON.stringify({
+        name:document.getElementById("itemName").value.trim(),
+        price:Number(document.getElementById("itemPrice").value),
+        description:document.getElementById("itemDescription").value.trim(),
+        category:document.getElementById("itemCategory").value.trim()||"وجبات"
+      })
+    });
+    const d=await r.json();
+    msg.textContent=d.message;
+    if(d.success){
+      document.getElementById("itemName").value="";
+      document.getElementById("itemPrice").value="";
+      document.getElementById("itemDescription").value="";
+      loadItems();
+    }
+  }catch(e){msg.textContent="تعذر الاتصال بالسيرفر";}
+}
+
+async function loadItems(){
+  const box=document.getElementById("itemsList");
+
+  try{
+    const r=await fetch(API+"/restaurant-items/my",{
+      headers:{Authorization:"Bearer "+token}
+    });
+
+    const d=await r.json();
+
+    if(!d.success || !d.items.length){
+      box.innerHTML="لا توجد وجبات حاليًا";
+      return;
+    }
+
+    box.innerHTML="";
+
+    d.items.filter(item=>Number(item.active)===1).forEach(item=>{
+      const div=document.createElement("div");
+      div.className="item";
+
+      div.innerHTML=
+        "<strong>🍽️ "+item.name+"</strong><br>"+
+        "💰 السعر: "+Number(item.price).toLocaleString()+" د.ع<br>"+
+        "📂 التصنيف: "+(item.category||"وجبات")+"<br>"+
+        (item.description?"📝 "+item.description+"<br>":"")+
+        "<button onclick='editItem("+item.id+")'>✏️ تعديل</button> "+
+        "<button class='secondary' onclick='deleteItem("+item.id+")'>🗑️ حذف</button>";
+
+      box.appendChild(div);
+    });
+
+  }catch(e){
+    box.textContent="تعذر تحميل الوجبات";
+  }
+}
+
+async function editItem(id){
+  const name=prompt("اسم الوجبة الجديد:");
+  if(name===null || !name.trim()) return;
+
+  const price=prompt("السعر الجديد:");
+  if(price===null || isNaN(Number(price))) return;
+
+  const description=prompt("وصف الوجبة:");
+  if(description===null) return;
+
+  const category=prompt("التصنيف:", "وجبات");
+  if(category===null) return;
+
+  try{
+    const r=await fetch(API+"/restaurant-items/"+id,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer "+token
+      },
+      body:JSON.stringify({
+        name:name.trim(),
+        price:Number(price),
+        description:description.trim(),
+        category:category.trim() || "وجبات"
+      })
+    });
+
+    const d=await r.json();
+    alert(d.message);
+
+    if(d.success) loadItems();
+
+  }catch(e){
+    alert("تعذر الاتصال بالسيرفر");
+  }
+}
+
+async function deleteItem(id){
+  if(!confirm("هل تريد حذف هذه الوجبة؟")) return;
+
+  try{
+    const r=await fetch(API+"/restaurant-items/"+id,{
+      method:"DELETE",
+      headers:{
+        Authorization:"Bearer "+token
+      }
+    });
+
+    const d=await r.json();
+    alert(d.message);
+
+    if(d.success) loadItems();
+
+  }catch(e){
+    alert("تعذر الاتصال بالسيرفر");
+  }
+}
+
+function logout(){
+  localStorage.removeItem("restaurantToken");
+  localStorage.removeItem("restaurantAccount");
+  location.reload();
+}
+
+if(token){
+  account=JSON.parse(localStorage.getItem("restaurantAccount")||"null");
+  showDashboard();
+  loadRestaurant();
+}
+</script>
+
+</body>
+</html>
