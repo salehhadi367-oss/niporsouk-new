@@ -644,7 +644,11 @@ async function loadSellerProducts() {
       encodeURIComponent(currentSeller.id)
     );
 
-    const products = await response.json();
+    let products = await response.json();
+
+    if (Array.isArray(products)) {
+      products = products.filter(product => Number(product.active) !== 0);
+    }
 
     list.innerHTML = "";
 
@@ -914,7 +918,10 @@ async function deleteSellerProduct(productId) {
       API_URL + "/products/" + productId +
       "?seller_id=" + encodeURIComponent(currentSeller.id),
       {
-        method: "DELETE"
+        method: "DELETE",
+        headers: {
+          "Authorization": "Bearer " + localStorage.getItem("sellerToken")
+        }
       }
     );
 

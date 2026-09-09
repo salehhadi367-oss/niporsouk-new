@@ -125,6 +125,36 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.method === 'GET') {
+    const requested = decodeURIComponent(req.url.split('?')[0]);
+    const relative = requested === '/' ? '/index.html' : requested;
+    const frontendRoot = path.join(__dirname, '..', 'frontend');
+    const filePath = path.resolve(frontendRoot, '.' + relative);
+
+    if (filePath.startsWith(frontendRoot + path.sep) || filePath === path.join(frontendRoot, 'index.html')) {
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        const ext = path.extname(filePath).toLowerCase();
+        const types = {
+          '.html': 'text/html; charset=utf-8',
+          '.js': 'application/javascript; charset=utf-8',
+          '.css': 'text/css; charset=utf-8',
+          '.json': 'application/json; charset=utf-8',
+          '.png': 'image/png',
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.webp': 'image/webp',
+          '.svg': 'image/svg+xml'
+        };
+        res.writeHead(200, {
+          'Content-Type': types[ext] || 'application/octet-stream',
+          'Access-Control-Allow-Origin': '*'
+        });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
+    }
+  }
+
   if (req.url === '/login' && req.method === 'POST') {
     let body = '';
 
@@ -231,6 +261,136 @@ const server = http.createServer((req, res) => {
       } catch (error) {
         console.error('Seller login error:', error);
 
+        sendJSON(res, {
+          success: false,
+          message: 'بيانات غير صحيحة'
+        }, 400);
+      }
+    });
+
+    return;
+  }
+
+  if (req.url === '/delivery-register' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+    });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+
+        if (!data.name || !data.phone || !data.email || !data.password) {
+          sendJSON(res, {
+            success: false,
+            message: 'الاسم والهاتف والبريد الإلكتروني وكلمة المرور مطلوبة'
+          }, 400);
+          return;
+        }
+
+        const existing = db.prepare(
+          'SELECT id FROM delivery_agents WHERE email = ?'
+        ).get(data.email);
+
+        if (existing) {
+          sendJSON(res, {
+            success: false,
+            message: 'البريد الإلكتروني مستخدم مسبقًا'
+          }, 409);
+          return;
+        }
+
+        const hashedPassword = hashPassword(data.password);
+
+        const result = db.prepare(`
+          INSERT INTO delivery_agents (name, phone, email, password, status)
+          VALUES (?, ?, ?, ?, 'active')
+        `).run(
+          data.name,
+          data.phone,
+          data.email,
+          hashedPassword
+        );
+
+        sendJSON(res, {
+          success: true,
+          message: 'تم إنشاء حساب المندوب بنجاح',
+          deliveryAgent: {
+            id: Number(result.lastInsertRowid),
+            name: data.name,
+            phone: data.phone,
+            email: data.email,
+            status: 'active'
+          }
+        });
+      } catch (error) {
+        console.error('Delivery register error:', error);
+        sendJSON(res, {
+          success: false,
+          message: 'بيانات التسجيل غير صحيحة'
+        }, 400);
+      }
+    });
+
+    return;
+  }
+
+  if (req.url === '/delivery-login' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+    });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+
+        if (!data.email || !data.password) {
+          sendJSON(res, {
+            success: false,
+            message: 'البريد الإلكتروني وكلمة المرور مطلوبان'
+          }, 400);
+          return;
+        }
+
+        const agent = db.prepare(`
+          SELECT id, name, phone, email, password, status
+          FROM delivery_agents
+          WHERE email = ?
+        `).get(data.email);
+
+        if (!agent || !verifyPassword(data.password, agent.password)) {
+          sendJSON(res, {
+            success: false,
+            message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+          }, 401);
+          return;
+        }
+
+        if (agent.status !== 'active') {
+          sendJSON(res, {
+            success: false,
+            message: 'حساب المندوب غير مفعّل'
+          }, 403);
+          return;
+        }
+
+        const token = createSession('delivery', agent.id);
+
+        sendJSON(res, {
+          success: true,
+          message: 'تم تسجيل دخول المندوب بنجاح',
+          token: token,
+          deliveryAgent: {
+            id: agent.id,
+            name: agent.name,
+            phone: agent.phone,
+            email: agent.email
+          }
+        });
+      } catch (error) {
+        console.error('Delivery login error:', error);
         sendJSON(res, {
           success: false,
           message: 'بيانات غير صحيحة'
@@ -414,7 +574,7 @@ const server = http.createServer((req, res) => {
 
       products = db.prepare(`
         SELECT products.id, products.name, products.price, products.category,
-               products.description, products.image, products.seller_id,
+               products.description, products.image, products.seller_id, products.active,
                sellers.name AS seller_name
         FROM products
         LEFT JOIN sellers ON products.seller_id = sellers.id
@@ -424,10 +584,11 @@ const server = http.createServer((req, res) => {
     } else {
       products = db.prepare(`
         SELECT products.id, products.name, products.price, products.category,
-               products.description, products.image, products.seller_id,
+               products.description, products.image, products.seller_id, products.active,
                sellers.name AS seller_name
         FROM products
         LEFT JOIN sellers ON products.seller_id = sellers.id
+        WHERE products.active = 1
         ORDER BY products.id
       `).all();
     }
@@ -437,39 +598,26 @@ const server = http.createServer((req, res) => {
   }
 
  
-  if (req.method === 'PUT' && req.url.startsWith('/products/')) {
+  if (req.method === 'PUT' && req.url.startsWith('/delivery-agents/')) {
+    const session = getSession(req);
 
-    if (!requireSession(req, "admin") && !requireSession(req, "seller")) {
+    if (!session || session.type !== 'admin') {
       sendJSON(res, {
         success: false,
-        message: 'غير مصرح لك بتعديل المنتج'
+        message: 'غير مصرح لك'
       }, 401);
       return;
     }
 
-    const url = new URL(req.url, 'http://localhost');
-    const productId = Number(url.pathname.split('/')[2]);
-    if (!Number.isInteger(productId)) {
+    const agentId = Number(req.url.split('/')[2]);
+
+    if (!Number.isInteger(agentId) || agentId <= 0) {
       sendJSON(res, {
         success: false,
-        message: 'معرف المنتج غير صحيح'
+        message: 'معرف المندوب غير صحيح'
       }, 400);
       return;
     }
-    const session = getSession(req);
-
-    if (!session) {
-      sendJSON(res, {
-        success: false,
-        message: 'جلسة غير صالحة'
-      }, 401);
-      return;
-    }
-
-    const sellerId =
-      session.type === "admin"
-        ? Number(url.searchParams.get('seller_id'))
-        : Number(session.userId);
 
     let body = '';
 
@@ -481,48 +629,163 @@ const server = http.createServer((req, res) => {
       try {
         const data = JSON.parse(body);
 
-        if (!data.name || data.price === undefined) {
+        if (!['active', 'inactive'].includes(data.status)) {
           sendJSON(res, {
             success: false,
-            message: 'اسم المنتج والسعر مطلوبان'
-          }, 400);
-          return;
-        }
-
-        if (data.seller_id === undefined || data.seller_id === null) {
-          sendJSON(res, {
-            success: false,
-            message: 'معرف البائع مطلوب'
-          }, 400);
-          return;
-        }
-
-        const finalSellerId =
-          session.type === "admin"
-            ? Number(data.seller_id)
-            : Number(session.userId);
-
-        if (!Number.isInteger(finalSellerId) || finalSellerId <= 0) {
-          sendJSON(res, {
-            success: false,
-            message: 'معرف البائع غير صحيح'
+            message: 'حالة المندوب غير صحيحة'
           }, 400);
           return;
         }
 
         const result = db.prepare(
-          'UPDATE products SET name = ?, price = ?, category = COALESCE(?, category), description = COALESCE(?, description), image = COALESCE(?, image) WHERE id = ? AND seller_id = ?'
-        ).run(
-          data.name,
-          Number(data.price),
-          data.category ?? null,
-          data.description ?? null,
-          data.image ?? null,
-          productId,
-          finalSellerId
-        );
+          'UPDATE delivery_agents SET status = ? WHERE id = ?'
+        ).run(data.status, agentId);
 
-        if (result.changes === 0) {
+        if (Number(result.changes) !== 1) {
+          sendJSON(res, {
+            success: false,
+            message: 'المندوب غير موجود'
+          }, 404);
+          return;
+        }
+
+        sendJSON(res, {
+          success: true,
+          message: data.status === 'active'
+            ? 'تم تفعيل المندوب'
+            : 'تم تعطيل المندوب'
+        });
+      } catch (error) {
+        console.error('Delivery agent status error:', error);
+        sendJSON(res, {
+          success: false,
+          message: 'بيانات غير صحيحة'
+        }, 400);
+      }
+    });
+
+    return;
+  }
+
+  if (req.method === 'DELETE' && req.url.startsWith('/delivery-agents/')) {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'admin') {
+      sendJSON(res, {
+        success: false,
+        message: 'غير مصرح لك'
+      }, 401);
+      return;
+    }
+
+    const agentId = Number(req.url.split('/')[2]);
+
+    if (!Number.isInteger(agentId) || agentId <= 0) {
+      sendJSON(res, {
+        success: false,
+        message: 'معرف المندوب غير صحيح'
+      }, 400);
+      return;
+    }
+
+    try {
+      const result = db.prepare(
+        'DELETE FROM delivery_agents WHERE id = ?'
+      ).run(agentId);
+
+      if (Number(result.changes) !== 1) {
+        sendJSON(res, {
+          success: false,
+          message: 'المندوب غير موجود'
+        }, 404);
+        return;
+      }
+
+      sendJSON(res, {
+        success: true,
+        message: 'تم حذف المندوب بنجاح'
+      });
+    } catch (error) {
+      console.error('Delete delivery agent error:', error);
+      sendJSON(res, {
+        success: false,
+        message: 'تعذر حذف المندوب'
+      }, 500);
+    }
+
+    return;
+  }
+
+  if (req.url === '/delivery-agents' && req.method === 'GET') {
+    const session = getSession(req);
+
+    if (!session || session.type !== 'admin') {
+      sendJSON(res, {
+        success: false,
+        message: 'غير مصرح لك'
+      }, 401);
+      return;
+    }
+
+    try {
+      const agents = db.prepare(`
+        SELECT id, name, phone, email, status
+        FROM delivery_agents
+        ORDER BY id DESC
+      `).all();
+
+      sendJSON(res, {
+        success: true,
+        agents
+      });
+    } catch (error) {
+      console.error('Delivery agents error:', error);
+      sendJSON(res, {
+        success: false,
+        message: 'تعذر تحميل المندوبين'
+      }, 500);
+    }
+
+    return;
+  }
+
+  if (req.method === 'PUT' && req.url.startsWith('/products/')) {
+    const session = getSession(req);
+
+    if (!session || (session.type !== 'admin' && session.type !== 'seller')) {
+      sendJSON(res, {
+        success: false,
+        message: 'غير مصرح لك بتعديل المنتج'
+      }, 401);
+      return;
+    }
+
+    const url = new URL(req.url, 'http://localhost');
+    const productId = Number(url.pathname.split('/')[2]);
+
+    if (!Number.isInteger(productId)) {
+      sendJSON(res, {
+        success: false,
+        message: 'معرف المنتج غير صحيح'
+      }, 400);
+      return;
+    }
+
+    let body = '';
+
+    req.on('data', chunk => {
+      body += chunk;
+    });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+
+        const product = db.prepare(
+          'SELECT id, seller_id FROM products WHERE id = ?'
+        ).get(productId);
+
+        if (!product) {
           sendJSON(res, {
             success: false,
             message: 'المنتج غير موجود'
@@ -530,33 +793,59 @@ const server = http.createServer((req, res) => {
           return;
         }
 
+        if (
+          session.type === 'seller' &&
+          Number(product.seller_id) !== Number(session.userId)
+        ) {
+          sendJSON(res, {
+            success: false,
+            message: 'لا يمكنك تعديل منتج بائع آخر'
+          }, 403);
+          return;
+        }
+
+        const name = String(data.name ?? '').trim();
+        const price = Number(data.price);
+        const category = String(data.category ?? '');
+        const description = String(data.description ?? '');
+        const image = String(data.image ?? '');
+
+        if (!name || !Number.isFinite(price)) {
+          sendJSON(res, {
+            success: false,
+            message: 'اسم المنتج والسعر مطلوبان'
+          }, 400);
+          return;
+        }
+
+        db.prepare(`
+          UPDATE products
+          SET name = ?, price = ?, category = ?, description = ?, image = ?
+          WHERE id = ?
+        `).run(name, price, category, description, image, productId);
+
         sendJSON(res, {
           success: true,
-          message: 'تم تعديل المنتج بنجاح ✅',
-          product: {
-            id: productId,
-            name: data.name,
-            price: Number(data.price),
-category: data.category || 'electronics'
-
-          }
+          message: 'تم تعديل المنتج بنجاح',
+          productId
         });
-
       } catch (error) {
-        console.error(error);
+        console.error('Update product error:', error);
 
         sendJSON(res, {
           success: false,
-          message: 'حدث خطأ أثناء تعديل المنتج'
-        }, 500);
+          message: 'بيانات المنتج غير صحيحة'
+        }, 400);
       }
     });
 
     return;
   }
- if (req.method === 'DELETE' && req.url.startsWith('/products/')) {
 
-    if (!requireSession(req, "admin") && !requireSession(req, "seller")) {
+  if (req.method === 'DELETE' && req.url.startsWith('/products/')) {
+    const session = getSession(req);
+
+    if (!session || (session.type !== 'admin' && session.type !== 'seller')) {
       sendJSON(res, {
         success: false,
         message: 'غير مصرح لك بحذف المنتج'
@@ -564,50 +853,128 @@ category: data.category || 'electronics'
       return;
     }
 
-const url = new URL(req.url, 'http://localhost');
-const productId = Number(url.pathname.split('/')[2]);
+    const url = new URL(req.url, 'http://localhost');
+    const productId = Number(url.pathname.split('/')[2]);
+
     if (!Number.isInteger(productId)) {
-      sendJSON(res, { success: false, message: 'معرف المنتج غير صحيح' }, 400);
-      return;
-    }
-const session = getSession(req);
-
-if (!session) {
-  sendJSON(res, {
-    success: false,
-    message: 'جلسة غير صالحة'
-  }, 401);
-  return;
-}
-
-const sellerId =
-  session.type === "admin"
-    ? Number(url.searchParams.get('seller_id'))
-    : Number(session.userId);
-
-    if (!Number.isInteger(sellerId)) {
       sendJSON(res, {
         success: false,
-        message: 'معرف البائع مطلوب'
+        message: 'معرف المنتج غير صحيح'
       }, 400);
       return;
     }
 
-const result = db.prepare(
-  'DELETE FROM products WHERE id = ? AND seller_id = ?'
-).run(productId, sellerId);
-    if (result.changes === 0) {
-      sendJSON(res, { success: false, message: 'المنتج غير موجود' }, 404);
+    const product = db.prepare(
+      'SELECT id, seller_id FROM products WHERE id = ?'
+    ).get(productId);
+
+    if (!product) {
+      sendJSON(res, {
+        success: false,
+        message: 'المنتج غير موجود'
+      }, 404);
       return;
     }
 
+    if (
+      session.type === 'seller' &&
+      Number(product.seller_id) !== Number(session.userId)
+    ) {
+      sendJSON(res, {
+        success: false,
+        message: 'لا يمكنك حذف منتج بائع آخر'
+      }, 403);
+      return;
+    }
+
+    db.prepare(
+      'UPDATE products SET active = 0 WHERE id = ?'
+    ).run(productId);
+
     sendJSON(res, {
       success: true,
-      message: 'تم حذف المنتج بنجاح ✅',
+      message: 'تم إخفاء المنتج بنجاح ✅',
       productId
     });
+
     return;
-  }  
+  }
+
+if (req.url === '/admin-stats' && req.method === 'GET') {
+    if (!requireSession(req, "admin")) {
+      sendJSON(res, {
+        success: false,
+        message: 'غير مصرح لك بعرض الإحصائيات'
+      }, 401);
+      return;
+    }
+
+    try {
+      const visitors = db.prepare(
+        'SELECT COUNT(DISTINCT visitor_id) AS count FROM site_visits'
+      ).get().count;
+
+      const customers = db.prepare(
+        "SELECT COUNT(DISTINCT phone) AS count FROM orders WHERE phone IS NOT NULL AND TRIM(phone) != ''"
+      ).get().count;
+
+      const sellers = db.prepare(
+        'SELECT COUNT(*) AS count FROM sellers'
+      ).get().count;
+
+      const deliveryAgents = db.prepare(
+        'SELECT COUNT(*) AS count FROM delivery_agents'
+      ).get().count;
+
+      const products = db.prepare(
+        'SELECT COUNT(*) AS count FROM products WHERE active = 1'
+      ).get().count;
+
+      const totalOrders = db.prepare(
+        'SELECT COUNT(*) AS count FROM orders'
+      ).get().count;
+
+      const orderStatuses = db.prepare(
+        'SELECT status, COUNT(*) AS count FROM orders GROUP BY status'
+      ).all();
+
+      const statuses = {
+        new: 0,
+        processing: 0,
+        shipped: 0,
+        completed: 0,
+        cancelled: 0
+      };
+
+      for (const row of orderStatuses) {
+        if (Object.prototype.hasOwnProperty.call(statuses, row.status)) {
+          statuses[row.status] = row.count;
+        }
+      }
+
+      sendJSON(res, {
+        success: true,
+        stats: {
+          visitors,
+          customers,
+          sellers,
+          deliveryAgents,
+          products,
+          totalOrders,
+          ordersByStatus: statuses
+        }
+      });
+    } catch (error) {
+      console.error('Admin stats error:', error);
+      sendJSON(res, {
+        success: false,
+        message: 'تعذر تحميل الإحصائيات'
+      }, 500);
+    }
+
+    return;
+  }
+
 if (req.url === '/sellers' && req.method === 'GET') {
     if (!requireSession(req, "admin")) {
       sendJSON(res, {
@@ -1047,6 +1414,241 @@ if (req.url === '/payment-test' && req.method === 'POST') {
   return;
 }
 
+if (req.url === '/delivery-orders' && req.method === 'GET') {
+  const session = getSession(req);
+
+  if (!session || session.type !== 'delivery') {
+    sendJSON(res, {
+      success: false,
+      message: 'غير مصرح لك'
+    }, 401);
+    return;
+  }
+
+  try {
+    const orders = db.prepare(`
+      SELECT
+        id,
+        name,
+        phone,
+        address,
+        total,
+        created_at,
+        status
+      FROM orders
+      WHERE delivery_agent_id IS NULL
+        AND status IN ('new', 'processing', 'shipped')
+      ORDER BY id DESC
+    `).all();
+
+    sendJSON(res, {
+      success: true,
+      orders
+    });
+  } catch (error) {
+    console.error('Delivery orders error:', error);
+    sendJSON(res, {
+      success: false,
+      message: 'تعذر تحميل الطلبات'
+    }, 500);
+  }
+
+  return;
+}
+
+if (req.url === '/delivery-my-orders' && req.method === 'GET') {
+  const session = getSession(req);
+
+  if (!session || session.type !== 'delivery') {
+    sendJSON(res, {
+      success: false,
+      message: 'غير مصرح لك'
+    }, 401);
+    return;
+  }
+
+  try {
+    const orders = db.prepare(`
+      SELECT
+        id,
+        name,
+        phone,
+        address,
+        total,
+        created_at,
+        status,
+        delivery_agent_id
+      FROM orders
+      WHERE delivery_agent_id = ?
+      ORDER BY id DESC
+    `).all(session.userId);
+
+    sendJSON(res, {
+      success: true,
+      orders
+    });
+  } catch (error) {
+    console.error('Delivery my orders error:', error);
+    sendJSON(res, {
+      success: false,
+      message: 'تعذر تحميل طلباتك'
+    }, 500);
+  }
+
+  return;
+}
+
+if (req.method === 'PUT' && req.url.startsWith('/delivery-orders/') && req.url.endsWith('/claim')) {
+  const session = getSession(req);
+
+  if (!session || session.type !== 'delivery') {
+    sendJSON(res, {
+      success: false,
+      message: 'غير مصرح لك'
+    }, 401);
+    return;
+  }
+
+  const agent = db.prepare(
+    'SELECT id, status FROM delivery_agents WHERE id = ?'
+  ).get(session.userId);
+
+  if (!agent || agent.status !== 'active') {
+    sendJSON(res, {
+      success: false,
+      message: 'حساب المندوب غير مفعّل'
+    }, 403);
+    return;
+  }
+
+  const parts = req.url.split('/');
+  const orderId = Number(parts[2]);
+
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    sendJSON(res, {
+      success: false,
+      message: 'رقم الطلب غير صحيح'
+    }, 400);
+    return;
+  }
+
+  try {
+    const result = db.prepare(`
+      UPDATE orders
+      SET delivery_agent_id = ?
+      WHERE id = ?
+        AND delivery_agent_id IS NULL
+    `).run(agent.id, orderId);
+
+    if (Number(result.changes) !== 1) {
+      sendJSON(res, {
+        success: false,
+        message: 'الطلب غير متاح أو تم استلامه من مندوب آخر'
+      }, 409);
+      return;
+    }
+
+    const order = db.prepare(`
+      SELECT id, name, phone, address, total, created_at, status, delivery_agent_id
+      FROM orders
+      WHERE id = ?
+    `).get(orderId);
+
+    sendJSON(res, {
+      success: true,
+      message: 'تم استلام الطلب بنجاح',
+      order
+    });
+  } catch (error) {
+    console.error('Delivery claim error:', error);
+    sendJSON(res, {
+      success: false,
+      message: 'تعذر استلام الطلب'
+    }, 500);
+  }
+
+  return;
+}
+
+if (req.method === 'PUT' && req.url.startsWith('/delivery-my-orders/') && req.url.endsWith('/status')) {
+  const session = getSession(req);
+
+  if (!session || session.type !== 'delivery') {
+    sendJSON(res, {
+      success: false,
+      message: 'غير مصرح لك'
+    }, 401);
+    return;
+  }
+
+  const parts = req.url.split('/');
+  const orderId = Number(parts[2]);
+
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    sendJSON(res, {
+      success: false,
+      message: 'رقم الطلب غير صحيح'
+    }, 400);
+    return;
+  }
+
+  let body = '';
+
+  req.on('data', chunk => {
+    body += chunk;
+  });
+
+  req.on('end', () => {
+    try {
+      const data = JSON.parse(body);
+      const allowedStatuses = ['processing', 'shipped', 'completed'];
+
+      if (!allowedStatuses.includes(data.status)) {
+        sendJSON(res, {
+          success: false,
+          message: 'حالة الطلب غير صحيحة'
+        }, 400);
+        return;
+      }
+
+      const result = db.prepare(`
+        UPDATE orders
+        SET status = ?
+        WHERE id = ?
+          AND delivery_agent_id = ?
+      `).run(data.status, orderId, session.userId);
+
+      if (Number(result.changes) !== 1) {
+        sendJSON(res, {
+          success: false,
+          message: 'الطلب غير موجود ضمن طلباتك'
+        }, 404);
+        return;
+      }
+
+      const order = db.prepare(`
+        SELECT id, name, phone, address, total, created_at, status, delivery_agent_id
+        FROM orders
+        WHERE id = ?
+      `).get(orderId);
+
+      sendJSON(res, {
+        success: true,
+        message: 'تم تحديث حالة الطلب',
+        order
+      });
+    } catch (error) {
+      console.error('Delivery status error:', error);
+      sendJSON(res, {
+        success: false,
+        message: 'بيانات غير صحيحة'
+      }, 400);
+    }
+  });
+
+  return;
+}
+
 if (req.url === '/orders' && req.method === 'POST') {
 
     let body = '';
@@ -1413,6 +2015,36 @@ for (const item of validatedItems) {
 
     return;
   }
+  if (req.url === '/track-visit' && req.method === 'POST') {
+    try {
+      const visitorId = req.headers['x-visitor-id'];
+
+      if (!visitorId || typeof visitorId !== 'string' || visitorId.length > 100) {
+        sendJSON(res, {
+          success: false,
+          message: 'معرف الزائر غير صالح'
+        }, 400);
+        return;
+      }
+
+      db.prepare(
+        'INSERT INTO site_visits (visitor_id, visited_at) VALUES (?, ?)'
+      ).run(visitorId, new Date().toISOString());
+
+      sendJSON(res, {
+        success: true,
+        message: 'تم تسجيل الزيارة بنجاح ✅'
+      });
+    } catch (error) {
+      console.error('Track visit error:', error);
+      sendJSON(res, {
+        success: false,
+        message: 'حدث خطأ أثناء تسجيل الزيارة'
+      }, 500);
+    }
+    return;
+  }
+
   sendJSON(res, {
     success: true,
     message: 'تم الاتصال بالسيرفر بنجاح ✅'

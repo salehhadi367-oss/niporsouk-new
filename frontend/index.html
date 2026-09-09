@@ -1167,6 +1167,11 @@ main {
          style="background:#fff; color:#0f766e; padding:9px 14px; border-radius:8px; text-decoration:none; font-weight:bold;">
         🧑‍💼 دخول البائع
       </a>
+      <a href="./delivery.html"
+        style="background:#fff; color:#0f766e; padding:9px 14px; border-radius:8px; text-decoration:none; font-weight:bold;">
+        🚚 دخول المندوب
+      </a>
+
       <a href="./admin.html"
          style="background:#fff; color:#0f766e; padding:9px 14px; border-radius:8px; text-decoration:none; font-weight:bold;">
         🔐 الإدارة
@@ -1820,6 +1825,32 @@ if ("serviceWorker" in navigator) {
     📦<span>طلباتي</span>
   </button>
 </nav>
+
+
+<script>
+(function () {
+  try {
+    let visitorId = localStorage.getItem('nebourVisitorId');
+
+    if (!visitorId) {
+      visitorId = 'visitor-' + crypto.randomUUID();
+      localStorage.setItem('nebourVisitorId', visitorId);
+    }
+
+    fetch('http://127.0.0.1:3000/track-visit', {
+      method: 'POST',
+      headers: {
+        'X-Visitor-Id': visitorId
+      }
+    })
+    .then(response => response.json())
+    .then(data => console.log('Visitor tracking:', data))
+    .catch(error => console.error('Visitor tracking error:', error));
+  } catch (error) {
+    console.error('Visitor ID error:', error);
+  }
+})();
+</script>
 
 </body>
 </html>

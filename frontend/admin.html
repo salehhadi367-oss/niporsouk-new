@@ -212,6 +212,17 @@
   </div>
 </div>
 
+<!-- إدارة المندوبين -->
+<div style="background:white; padding:20px; margin:20px 0; border-radius:12px;">
+  <h2>🚚 إدارة المندوبين</h2>
+
+  <button onclick="loadDeliveryAgents()">🔄 تحديث المندوبين</button>
+
+  <div id="deliveryAgentsList" style="margin-top:15px;">
+    جاري تحميل المندوبين...
+  </div>
+</div>
+
 <div id="status" class="status">
     جاري تحميل الطلبات...
   </div>
@@ -221,6 +232,121 @@
   <div id="orders"></div>
 
   <script>
+    async function loadDeliveryAgents() {
+      const list = document.getElementById("deliveryAgentsList");
+      list.innerHTML = "⏳ جاري تحميل المندوبين...";
+
+      try {
+        const response = await adminFetch("http://127.0.0.1:3000/delivery-agents");
+        const data = await response.json();
+
+        if (!data.success) {
+          list.innerHTML = "❌ " + (data.message || "تعذر تحميل المندوبين");
+          return;
+        }
+
+        if (!data.agents || data.agents.length === 0) {
+          list.innerHTML = "لا يوجد مندوبون حاليًا";
+          return;
+        }
+
+        list.innerHTML = "";
+
+        data.agents.forEach(agent => {
+          const box = document.createElement("div");
+          box.style.cssText =
+            "border:1px solid #ddd;border-radius:12px;padding:15px;margin:10px 0;background:#fafafa;";
+
+          const statusText =
+            agent.status === "active" ? "🟢 فعال" : "🔴 معطل";
+
+          const toggleText =
+            agent.status === "active" ? "🔴 تعطيل" : "🟢 تفعيل";
+
+          box.innerHTML = `
+            <strong>🚚 ${agent.name}</strong>
+            <p>📞 الهاتف: ${agent.phone || "غير موجود"}</p>
+            <p>📧 البريد: ${agent.email || "غير موجود"}</p>
+            <p>الحالة: <b>${statusText}</b></p>
+
+            <button onclick="toggleDeliveryAgent(${agent.id}, '${agent.status}')">
+              ${toggleText}
+            </button>
+
+            <button
+              onclick="deleteDeliveryAgent(${agent.id}, '${agent.name.replace(/'/g, "\\'")}')"
+              style="background:#b91c1c;margin-top:6px;">
+              🗑️ حذف المندوب
+            </button>
+          `;
+
+          list.appendChild(box);
+        });
+
+      } catch (error) {
+        console.error(error);
+        list.innerHTML = "❌ تعذر الاتصال بالسيرفر";
+      }
+    }
+
+    async function toggleDeliveryAgent(id, currentStatus) {
+      const newStatus = currentStatus === "active" ? "inactive" : "active";
+
+      try {
+        const response = await adminFetch(
+          "http://127.0.0.1:3000/delivery-agents/" + id,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ status: newStatus })
+          }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+          alert("❌ " + (data.message || "تعذر تغيير حالة المندوب"));
+          return;
+        }
+
+        alert("✅ " + data.message);
+        loadDeliveryAgents();
+
+      } catch (error) {
+        console.error(error);
+        alert("❌ تعذر الاتصال بالسيرفر");
+      }
+    }
+
+    async function deleteDeliveryAgent(id, name) {
+      if (!confirm("هل تريد حذف المندوب: " + name + " ؟")) return;
+
+      try {
+        const response = await adminFetch(
+          "http://127.0.0.1:3000/delivery-agents/" + id,
+          {
+            method: "DELETE"
+          }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+          alert("❌ " + (data.message || "تعذر حذف المندوب"));
+          return;
+        }
+
+        alert("✅ تم حذف المندوب بنجاح");
+        loadDeliveryAgents();
+
+      } catch (error) {
+        console.error(error);
+        alert("❌ تعذر الاتصال بالسيرفر");
+      }
+    }
+
     function adminFetch(url, options = {}) {
       const token = localStorage.getItem("adminToken");
 
@@ -702,31 +828,79 @@ document.getElementById("productImageFile").value = "";
     
 async function updateDashboard() {
   try {
-    const response = await adminFetch("http://127.0.0.1:3000/orders");
-    const orders = await response.json();
+    const response = await adminFetch("http://127.0.0.1:3000/admin-stats");
+    const data = await response.json();
 
-    const totalOrders = orders.length;
-    const newOrders = orders.filter(order => order.status === "new").length;
-    const totalSales = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    if (!data.success) {
+      throw new Error(data.message || "تعذر تحميل الإحصائيات");
+    }
+
+    const s = data.stats;
+    const o = s.ordersByStatus || {};
 
     document.getElementById("dashboardStats").innerHTML = `
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin:20px 0;">
-        <div style="padding:15px; border:1px solid #ddd; border-radius:10px;">
-          📦 الطلبات: <strong>${totalOrders}</strong>
-        </div>
-        <div style="padding:15px; border:1px solid #ddd; border-radius:10px;">
-          🆕 الجديدة: <strong>${newOrders}</strong>
-        </div>
-        <div style="padding:15px; border:1px solid #ddd; border-radius:10px;">
-          💰 المبيعات: <strong>${totalSales.toLocaleString()} د.ع</strong>
+      <div style="margin:20px 0;">
+        <h2 style="margin-bottom:15px;">📊 إحصائيات المتجر</h2>
+
+        <div style="
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+          gap:10px;
+        ">
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            👁️<br><strong style="font-size:24px;">${s.visitors}</strong><br>الزوار
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            👤<br><strong style="font-size:24px;">${s.customers}</strong><br>الزبائن
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            🏪<br><strong style="font-size:24px;">${s.sellers}</strong><br>البائعون
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            🚚<br><strong style="font-size:24px;">${s.deliveryAgents}</strong><br>المندوبون
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            🛍️<br><strong style="font-size:24px;">${s.products}</strong><br>المنتجات
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            📦<br><strong style="font-size:24px;">${s.totalOrders}</strong><br>إجمالي الطلبات
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            🆕<br><strong style="font-size:24px;">${o.new || 0}</strong><br>جديدة
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            ⚙️<br><strong style="font-size:24px;">${o.processing || 0}</strong><br>قيد المعالجة
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            🚚<br><strong style="font-size:24px;">${o.shipped || 0}</strong><br>مشحونة
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            ✅<br><strong style="font-size:24px;">${o.completed || 0}</strong><br>مكتملة
+          </div>
+
+          <div style="padding:15px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;">
+            ❌<br><strong style="font-size:24px;">${o.cancelled || 0}</strong><br>ملغاة
+          </div>
+
         </div>
       </div>
     `;
   } catch (error) {
     console.error("Dashboard error:", error);
+    document.getElementById("dashboardStats").innerHTML =
+      "❌ تعذر تحميل الإحصائيات: " + error.message;
   }
 }
-
 
 async function loadSellers() {
   const sellersList = document.getElementById("sellersList");
