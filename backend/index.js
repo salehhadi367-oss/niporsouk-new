@@ -1407,6 +1407,52 @@ if (req.url === '/admin-stats' && req.method === 'GET') {
   }
 
 // ===== Admin Restaurants =====
+if (req.url.startsWith('/admin/restaurants/') && req.method === 'PUT') {
+  if (!requireSession(req, "admin")) {
+    sendJSON(res, { success: false, message: "غير مصرح" }, 401);
+    return;
+  }
+
+  const id = Number(req.url.split('/')[3]);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    sendJSON(res, { success: false, message: "معرف المطعم غير صحيح" }, 400);
+    return;
+  }
+
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+
+  req.on('end', () => {
+    try {
+      const data = JSON.parse(body);
+      const status = data.status === 'active' ? 'active' : 'inactive';
+
+      const result = db.prepare(
+        "UPDATE restaurants SET status = ? WHERE id = ?"
+      ).run(status, id);
+
+      if (result.changes === 0) {
+        sendJSON(res, { success: false, message: "المطعم غير موجود" }, 404);
+        return;
+      }
+
+      sendJSON(res, {
+        success: true,
+        message: status === 'active' ? 'تم تفعيل المطعم' : 'تم تعطيل المطعم'
+      });
+    } catch (error) {
+      console.error("Admin restaurant update error:", error);
+      sendJSON(res, {
+        success: false,
+        message: "تعذر تعديل حالة المطعم"
+      }, 500);
+    }
+  });
+
+  return;
+}
+
 if (req.url === '/admin/restaurants' && req.method === 'GET') {
   if (!requireSession(req, "admin")) {
     sendJSON(res, { success: false, message: "غير مصرح" }, 401);

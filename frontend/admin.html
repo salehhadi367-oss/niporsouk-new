@@ -1198,10 +1198,42 @@ async function loadAdminRestaurants() {
       box.innerHTML = "<p>لا توجد مطاعم حاليًا.</p>";
       return;
     }
-    box.innerHTML = data.restaurants.map(r => `<div style="background:#f8f8f8;padding:15px;margin-bottom:10px;border-radius:10px;"><h3>🍽️ ${r.name}</h3><p>📞 ${r.phone || "لا يوجد رقم"}</p><p>📍 ${r.address || "العنوان غير محدد"}</p><p>الحالة: <strong>${r.status === "active" ? "🟢 فعال" : "🔴 متوقف"}</strong></p></div>`).join("");
+    box.innerHTML = data.restaurants.map(r => `<div style="background:#f8f8f8;padding:15px;margin-bottom:10px;border-radius:10px;"><h3>🍽️ ${r.name}</h3><p>📞 ${r.phone || "لا يوجد رقم"}</p><p>📍 ${r.address || "العنوان غير محدد"}</p><p>الحالة: <strong>${r.status === "active" ? "🟢 فعال" : "🔴 متوقف"}</strong></p>
+<button onclick="toggleAdminRestaurant(${r.id}, '${r.status}')"
+style="padding:8px 14px;border:0;border-radius:8px;background:${r.status === "active" ? "#b91c1c" : "#15803d"};color:white;">
+${r.status === "active" ? "⛔ تعطيل المطعم" : "✅ تفعيل المطعم"}
+</button>
+</div>`).join("");
   } catch (error) {
     box.innerHTML = "<p style='color:#b91c1c;'>تعذر تحميل المطاعم ❌</p>";
     console.error("Admin restaurants error:", error);
+  }
+}
+
+async function toggleAdminRestaurant(id, currentStatus) {
+  const newStatus = currentStatus === "active" ? "inactive" : "active";
+
+  try {
+    const response = await adminFetch(
+      "http://127.0.0.1:3000/admin/restaurants/" + id,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "تعذر تعديل حالة المطعم");
+    }
+
+    alert(data.message + " ✅");
+    loadAdminRestaurants();
+
+  } catch (error) {
+    alert("تعذر تعديل حالة المطعم ❌\n" + error.message);
   }
 }
 
