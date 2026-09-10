@@ -1,3 +1,4 @@
+<script>const API_BASE=(location.hostname==="127.0.0.1"||location.hostname==="localhost")?"http://127.0.0.1:3000":location.origin;</script>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1180,6 +1181,16 @@ main {
     <div id="cart">🛒 السلة: <span id="cartCount">0</span></div>
   </header>
 
+
+<section id="restaurantsSection" style="margin:20px 0;">
+  <div style="background:white;border-radius:16px;padding:18px;box-shadow:0 3px 12px rgba(0,0,0,.08);">
+    <h2 style="margin:0 0 15px;color:#0f766e;">🍽️ المطاعم</h2>
+    <div id="restaurantsList">
+      جاري تحميل المطاعم...
+    </div>
+  </div>
+</section>
+
 <section id="nebourHero">
   <div>
     <small>🛍️ كل ما تحتاجه في مكان واحد</small>
@@ -1280,7 +1291,7 @@ function saveCart() {
 
       try {
 
-        const response = await fetch("http://127.0.0.1:3000/products");
+        const response = await fetch(API_BASE + "/products");
 
         if (!response.ok) {
           throw new Error("HTTP " + response.status);
@@ -1372,7 +1383,7 @@ async function trackOrder() {
 
   try {
     const response = await fetch(
-      `http://127.0.0.1:3000/orders/${orderId}`
+      API_BASE + "/orders/" + orderId
     );
 
     const data = await response.json();
@@ -1601,7 +1612,7 @@ function addToCart(productId) {
       });
 
       try {
-        const response = await fetch("http://127.0.0.1:3000/orders", {
+        const response = await fetch(API_BASE + "/orders", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -1837,7 +1848,7 @@ if ("serviceWorker" in navigator) {
       localStorage.setItem('nebourVisitorId', visitorId);
     }
 
-    fetch('http://127.0.0.1:3000/track-visit', {
+    fetch(API_BASE + '/track-visit', {
       method: 'POST',
       headers: {
         'X-Visitor-Id': visitorId
@@ -1850,6 +1861,118 @@ if ("serviceWorker" in navigator) {
     console.error('Visitor ID error:', error);
   }
 })();
+</script>
+
+<a href="./restaurant.html" style="display:block;text-align:center;margin:20px;padding:12px;background:#0f766e;color:white;border-radius:10px;text-decoration:none;">🍽️ دخول المطعم</a>
+<script>
+async function loadRestaurants(){
+  const box=document.getElementById("restaurantsList");
+  if(!box) return;
+
+  try{
+    const r=await fetch(API_BASE + "/restaurants");
+    const d=await r.json();
+
+    if(!d.success || !d.restaurants || !d.restaurants.length){
+      box.innerHTML="<p style='text-align:center;'>لا توجد مطاعم حاليًا</p>";
+      return;
+    }
+
+    box.innerHTML="";
+
+    d.restaurants.forEach(restaurant=>{
+      const card=document.createElement("div");
+
+      card.style.cssText=
+        "border:1px solid #eee;border-radius:14px;padding:15px;margin:10px 0;cursor:pointer;background:#fafafa;";
+
+      card.innerHTML=
+        "<strong style='font-size:18px;'>🍽️ "+restaurant.name+"</strong><br>"+
+        "<span>📍 "+(restaurant.address || "العنوان غير محدد")+"</span><br>"+
+        "<span>📞 "+(restaurant.phone || "لا يوجد رقم")+"</span>";
+
+      card.onclick=function(){
+        loadRestaurantItems(restaurant.id, restaurant.name);
+      };
+
+      box.appendChild(card);
+    });
+
+  }catch(e){
+    box.innerHTML="<p style='text-align:center;color:#b91c1c;'>تعذر تحميل المطاعم</p>";
+  }
+}
+
+async function loadRestaurantItems(restaurantId, restaurantName){
+  const box=document.getElementById("restaurantsList");
+
+  box.innerHTML="<p style='text-align:center;'>جاري تحميل الوجبات...</p>";
+
+  try{
+    const r=await fetch(API_BASE + "/restaurant-items/"+restaurantId);
+    const d=await r.json();
+
+    if(!d.success){
+      box.innerHTML="<p style='text-align:center;'>"+(d.message || "تعذر تحميل الوجبات")+"</p>";
+      return;
+    }
+
+    window.currentRestaurantItems = d.items || [];
+
+    let html=
+      "<button onclick='loadRestaurants()' style='margin-bottom:15px;padding:10px 16px;border:0;border-radius:10px;background:#555;color:white;cursor:pointer;'>⬅️ رجوع للمطاعم</button>"+
+      "<h3 style='color:#0f766e;'>🍽️ "+restaurantName+"</h3>";
+
+    if(!d.items || !d.items.length){
+      html+="<p style='text-align:center;'>لا توجد وجبات حاليًا</p>";
+      box.innerHTML=html;
+      return;
+    }
+
+    d.items.forEach(item=>{
+      html+=
+        "<div style='border:1px solid #eee;border-radius:14px;padding:15px;margin:10px 0;background:#fff;'>"+
+        "<strong style='font-size:18px;'>🍔 "+item.name+"</strong><br>"+
+        "<span>💰 "+Number(item.price).toLocaleString()+" د.ع</span><br>"+
+        "<span>📂 "+(item.category || "وجبات")+"</span><br>"+
+        (item.description ? "<span>📝 "+item.description+"</span><br>" : "")+
+        "<button onclick='addRestaurantItem("+item.id+")' style='margin-top:10px;padding:10px 15px;border:0;border-radius:10px;background:#0f766e;color:white;font-weight:bold;cursor:pointer;'>➕ إضافة للسلة</button>"+
+        "</div>";
+    });
+
+    box.innerHTML=html;
+
+  }catch(e){
+    box.innerHTML="<p style='text-align:center;color:#b91c1c;'>تعذر تحميل الوجبات</p>";
+  }
+}
+
+function addRestaurantItem(itemId){
+  const item = (window.currentRestaurantItems || []).find(
+    x => String(x.id) === String(itemId)
+  );
+
+  if(!item){
+    alert("الوجبة غير موجودة");
+    return;
+  }
+
+  const restaurantItem = {
+    ...item,
+    cartType: "restaurant"
+  };
+
+  cart.push(restaurantItem);
+
+  document.getElementById("cartCount").textContent = cart.length;
+  saveCart();
+  updateCart();
+
+  alert("تمت إضافة الوجبة إلى السلة 🛒");
+}
+
+loadRestaurants();
+
 </script>
 
 </body>
