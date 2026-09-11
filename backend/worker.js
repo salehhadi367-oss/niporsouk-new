@@ -2589,4 +2589,4 @@ for (const item of validatedItems) {
 
 
 server.listen(3000);
-module.exports = httpServerHandler(server);
+export default httpServerHandler(server);
