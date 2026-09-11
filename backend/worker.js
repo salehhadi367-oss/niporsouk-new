@@ -1,4 +1,4 @@
-const { httpServerHandler } = require("cloudflare:node");
+import { httpServerHandler } from "cloudflare:node";
 const http = require('http');
 const Busboy = require('busboy');
 const fs = require('fs');
