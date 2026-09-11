@@ -1,6 +1,5 @@
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { httpServerHandler } from 'cloudflare:node';
+const __dirname = '/tmp';
 import { httpServerHandler } from "cloudflare:node";
 const http = require('http');
 const Busboy = require('busboy');
