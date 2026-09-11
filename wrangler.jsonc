@@ -1,7 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "niporsouk-new",
+  "main": "backend/index.js",
   "compatibility_date": "2026-09-10",
+  "compatibility_flags": [
+    "enable_nodejs_http_modules",
+    "enable_nodejs_sqlite_module"
+  ],
   "assets": {
     "directory": "frontend"
   }
