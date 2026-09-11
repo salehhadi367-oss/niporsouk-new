@@ -2,6 +2,6 @@
   "name": "niporsouk",
   "version": "1.0.0",
   "scripts": {
-    "start": "cd backend && node index.js"
+    "start": "node backend/index.js"
   }
 }
