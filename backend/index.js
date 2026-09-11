@@ -2586,6 +2586,6 @@ for (const item of validatedItems) {
   });
 });
 
-server.listen(3000, () => {
+server.listen(process.env.PORT || 3000, '0.0.0.0', () => {
   console.log('Backend يعمل على http://localhost:3000');
 });
