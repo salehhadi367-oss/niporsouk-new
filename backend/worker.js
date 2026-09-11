@@ -2589,6 +2589,5 @@ for (const item of validatedItems) {
 
 server.listen(3000);
   console.log('Backend يعمل على http://localhost:3000');
-});
 
 module.exports = httpServerHandler(server);
