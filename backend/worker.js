@@ -2589,4 +2589,4 @@ for (const item of validatedItems) {
 
 
 server.listen(3000);
-export default httpServerHandler(server);
+export default httpServerHandler({ port: 3000 });
