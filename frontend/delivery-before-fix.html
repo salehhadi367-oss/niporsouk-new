@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مندوب نيبور سوق</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f3f7f6;margin:0;padding:20px;color:#222}
+.container{max-width:700px;margin:auto}
+.card{background:white;border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 4px 18px rgba(0,0,0,.08)}
+h1,h2{text-align:center}
+input,button{width:100%;box-sizing:border-box;padding:13px;margin:7px 0;border-radius:10px;font-size:16px}
+input{border:1px solid #ddd}
+button{border:0;background:#0f766e;color:white;font-weight:bold;cursor:pointer}
+button.secondary{background:#374151}
+button.danger{background:#b91c1c}
+.hidden{display:none}
+.order{border:1px solid #ddd;border-radius:12px;padding:15px;margin:12px 0}
+.status{font-weight:bold;margin:8px 0}
+.message{text-align:center;padding:10px;font-weight:bold}
+.small{color:#666;font-size:14px}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div id="loginBox" class="card">
+  <h1>🚚 نيبور سوق</h1>
+  <h2>دخول المندوب</h2>
+
+  <input id="loginEmail" type="email" placeholder="البريد الإلكتروني">
+  <input id="loginPassword" type="password" placeholder="كلمة المرور">
+  <button onclick="login()">🔐 تسجيل الدخول</button>
+
+  <hr>
+
+  <h2>تسجيل مندوب جديد</h2>
+  <input id="regName" type="text" placeholder="الاسم الكامل">
+  <input id="regPhone" type="tel" placeholder="رقم الهاتف">
+  <input id="regEmail" type="email" placeholder="البريد الإلكتروني">
+  <input id="regPassword" type="password" placeholder="كلمة المرور">
+  <button onclick="register()">📝 إنشاء حساب مندوب</button>
+
+  <div id="authMessage" class="message"></div>
+</div>
+
+<div id="dashboard" class="hidden">
+
+  <div class="card">
+    <h1>🚚 لوحة المندوب</h1>
+    <p id="agentInfo" class="small"></p>
+    <button class="danger" onclick="logout()">تسجيل الخروج</button>
+  </div>
+
+  <div class="card">
+    <h2>📋 الطلبات المتاحة</h2>
+    <button onclick="loadAvailableOrders()">🔄 تحديث الطلبات</button>
+    <div id="availableOrders">جاري التحميل...</div>
+  </div>
+
+  <div class="card">
+    <h2>📦 طلباتي</h2>
+    <button onclick="loadMyOrders()">🔄 تحديث طلباتي</button>
+    <div id="my
+
