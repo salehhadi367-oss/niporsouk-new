@@ -6,7 +6,7 @@
 
       try {
         const response = await fetch(
-          "http://127.0.0.1:3000/products"
+          "https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products"
         );
 
         const products = await response.json();
@@ -65,7 +65,7 @@
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:3000/products/${id}`,
+          `https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products/${id}`,
           {
             method: "PUT",
             headers: {
@@ -103,7 +103,7 @@
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:3000/products/${id}`,
+          `https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products/${id}`,
           {
             method: "DELETE"
           }
@@ -135,7 +135,7 @@
       try {
 
         const response = await fetch(
-          "http://127.0.0.1:3000/orders"
+          "https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/orders"
         );
 
         const orders = await response.json();
@@ -225,7 +225,7 @@
 
     async function updateOrderStatus(orderId, newStatus) {
       try {
-        const response = await fetch(`http://127.0.0.1:3000/orders/${orderId}/status`, {
+        const response = await fetch(`https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/orders/${orderId}/status`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus })
@@ -256,7 +256,7 @@
       }
 
       try {
-        const response = await fetch("http://127.0.0.1:3000/products", {
+        const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, price })

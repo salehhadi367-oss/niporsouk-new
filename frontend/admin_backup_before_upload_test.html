@@ -181,7 +181,7 @@
 
       try {
         const response = await fetch(
-          "http://127.0.0.1:3000/products"
+          "https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products"
         );
 
         const products = await response.json();
@@ -257,7 +257,7 @@ box.dataset.category = product.category || "";
           const image = await uploadProductImage(file);
 
           const response = await fetch(
-            `http://127.0.0.1:3000/products/${id}`,
+            `https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products/${id}`,
             {
               method: "PUT",
               headers: {
@@ -333,7 +333,7 @@ async function editProduct(id) {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:3000/products/${id}`,
+          `https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products/${id}`,
           {
             method: "PUT",
             headers: {
@@ -373,7 +373,7 @@ async function editProduct(id) {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:3000/products/${id}`,
+          `https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products/${id}`,
           {
             method: "DELETE"
           }
@@ -405,7 +405,7 @@ async function editProduct(id) {
       try {
 
         const response = await fetch(
-          "http://127.0.0.1:3000/orders"
+          "https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/orders"
         );
 
         const orders = await response.json();
@@ -498,7 +498,7 @@ document.getElementById("salesTotal").textContent = orders.reduce((sum, order) =
 
     async function updateOrderStatus(orderId, newStatus) {
       try {
-        const response = await fetch(`http://127.0.0.1:3000/orders/${orderId}/status`, {
+        const response = await fetch(`https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/orders/${orderId}/status`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus })
@@ -544,7 +544,7 @@ function filterProducts() {
   formData.append("image", file);
 
   const response = await fetch(
-    "http://127.0.0.1:3000/upload",
+    "https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/upload",
     {
       method: "POST",
       body: formData
@@ -570,7 +570,7 @@ if (imageFile) {
   const formData = new FormData();
   formData.append("image", imageFile);
 
-  const uploadResponse = await fetch("http://127.0.0.1:3000/upload", {
+  const uploadResponse = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/upload", {
     method: "POST",
     body: formData
   });
@@ -591,7 +591,7 @@ if (imageFile) {
       }
 
       try {
-        const response = await fetch("http://127.0.0.1:3000/products", {
+        const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
          body: JSON.stringify({
@@ -624,7 +624,7 @@ document.getElementById("productImageFile").value = "";
     
 async function updateDashboard() {
   try {
-    const response = await fetch("http://127.0.0.1:3000/orders");
+    const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/orders");
     const orders = await response.json();
 
     const totalOrders = orders.length;

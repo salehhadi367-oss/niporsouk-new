@@ -170,7 +170,7 @@
 
 <script>
 
-const API_URL = "http://127.0.0.1:3000";
+const API_URL = "https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev";
 
 let currentSeller = null;
 
@@ -515,7 +515,7 @@ async function loadSellerProducts() {
 
   try {
 
-    const response = await fetch("http://127.0.0.1:3000/products");
+    const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products");
 
     const products = await response.json();
 
@@ -591,7 +591,7 @@ async function loadSellerProducts() {
 
 async function editSellerProduct(productId) {
 
-  const response = await fetch("http://127.0.0.1:3000/products");
+  const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products");
   const products = await response.json();
 
   const product = products.find(
@@ -624,7 +624,7 @@ async function editSellerProduct(productId) {
   try {
 
     const updateResponse = await fetch(
-      "http://127.0.0.1:3000/products/" + productId,
+      "https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products/" + productId,
       {
         method: "PUT",
         headers: {
@@ -676,7 +676,7 @@ async function addSellerProduct() {
 
   try {
 
-    const response = await fetch("http://127.0.0.1:3000/products", {
+    const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

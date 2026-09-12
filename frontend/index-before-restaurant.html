@@ -1280,7 +1280,7 @@ function saveCart() {
 
       try {
 
-        const response = await fetch("http://127.0.0.1:3000/products");
+        const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products");
 
         if (!response.ok) {
           throw new Error("HTTP " + response.status);
@@ -1372,7 +1372,7 @@ async function trackOrder() {
 
   try {
     const response = await fetch(
-      `http://127.0.0.1:3000/orders/${orderId}`
+      `https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/orders/${orderId}`
     );
 
     const data = await response.json();
@@ -1601,7 +1601,7 @@ function addToCart(productId) {
       });
 
       try {
-        const response = await fetch("http://127.0.0.1:3000/orders", {
+        const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/orders", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -1837,7 +1837,7 @@ if ("serviceWorker" in navigator) {
       localStorage.setItem('nebourVisitorId', visitorId);
     }
 
-    fetch('http://127.0.0.1:3000/track-visit', {
+    fetch('https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/track-visit', {
       method: 'POST',
       headers: {
         'X-Visitor-Id': visitorId

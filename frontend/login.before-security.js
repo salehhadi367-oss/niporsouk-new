@@ -4,7 +4,7 @@ async function backendLogin() {
   const loginMessage = document.getElementById("loginMessage");
 
   try {
-    const response = await fetch("http://127.0.0.1:3000/login", {
+    const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

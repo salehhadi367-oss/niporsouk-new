@@ -101,7 +101,7 @@ async function loadSellerProducts() {
 
   try {
 
-    const response = await fetch("http://127.0.0.1:3000/products");
+    const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products");
 
     const products = await response.json();
 
@@ -190,7 +190,7 @@ async function addSellerProduct() {
 
   try {
 
-    const response = await fetch("http://127.0.0.1:3000/products", {
+    const response = await fetch("https://9f4bb1a3-7eb2-4d9e-8ff5-1501ef6b780e-00-huzse5o9n4p7.sisko.replit.dev/products", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
